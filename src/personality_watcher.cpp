@@ -102,24 +102,24 @@ void personality_watcher::personality_update() {
                 }
             }
 
-            if (!(new_auctions.size() > 0)) {
+            if (new_auctions.size() > 0) {
+                auto server_time = server_time_now();
+                for (auto&& au : new_auctions) {
+                    update_wait_times(au);
+
+                    active_auction new_active_auction{*au, server_time, &gamedata->get_personality(au->personality_id)};
+                    alert_manager_->add_active_auction(new_active_auction);
+
+                    dpp::message msg;
+                    msg.channel_id = alert_manager_->get_alert_channel();
+                    msg.add_embed(util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true));
+
+                    send_discord_msg(msg, tries,
+                                     std::chrono::abs(new_active_auction.end_time - auction::s_discord_extra_delay));
+                }
+            } else {
                 logger->debug("No new auctions in the last request");
-                return;
-            }
-
-            auto server_time = server_time_now();
-            for (auto&& au : new_auctions) {
-                update_wait_times(au);
-
-                active_auction new_active_auction{*au, server_time, &gamedata->get_personality(au->personality_id)};
-                alert_manager_->add_active_auction(new_active_auction);
-
-                dpp::message msg;
-                msg.channel_id = alert_manager_->get_alert_channel();
-                msg.add_embed(util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true));
-
-                send_discord_msg(msg, tries,
-                                 std::chrono::abs(new_active_auction.end_time - auction::s_discord_extra_delay));
+                wait_times_.push_back(auction::s_pause);
             }
 
         } catch (const std::exception& e) {

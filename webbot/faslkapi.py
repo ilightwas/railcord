@@ -10,10 +10,10 @@ app = Flask(__name__)
 bot: webbot.Webbot = None
 corp_json: str = ""
 server_time_json: str = ""
-testing: bool = False
+testing: bool = True
 
 
-@app.route(webbot.webbotconfig["Lucy.personality_endpoint"])
+@app.route(f'/{webbot.webbotconfig["Lucy.personality_endpoint"]}')
 def corporation():
     if testing:
         return corp_json
@@ -27,7 +27,7 @@ def corporation():
         return Response(status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
-@app.route(webbot.webbotconfig["Lucy.sync_time_endpoint"])
+@app.route(f'/webbot.webbotconfig["Lucy.sync_time_endpoint"]')
 def servertime():
     if testing:
         time.sleep(3)
@@ -47,11 +47,11 @@ def servertime():
 
 
 def load() -> None:
-    with open("corp.json", "r") as file:
+    with open("webbot/corp.json", "r") as file:
         global corp_json
         corp_json = file.read()
 
-    with open("servertime.json", "r") as file:
+    with open("webbot/servertime.json", "r") as file:
         global server_time_json
         server_time_json = file.read()
 

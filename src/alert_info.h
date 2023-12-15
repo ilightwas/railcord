@@ -35,6 +35,14 @@ class Alert_Info {
     std::vector<int> enabled_intervals_;
 };
 
+struct alert_data {
+    alert_data(uint64_t seconds, int interval, const dpp::message& msg)
+        : seconds(seconds), interval(interval), msg(msg) {}
+    uint64_t seconds;
+    int interval;
+    const dpp::message msg;
+};
+
 }   // namespace railcord
 
 #endif   // !ALERT_INFO_H

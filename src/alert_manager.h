@@ -11,6 +11,7 @@
 
 #include "alert_info.h"
 #include "personality.h"
+#include "sent_messages.h"
 
 namespace railcord {
 
@@ -60,6 +61,7 @@ class Alert_Manager {
 
     dpp::snowflake alert_role_;
     dpp::snowflake alert_channel_;
+    sent_messages sent_msgs_;
 };
 
 }   // namespace railcord

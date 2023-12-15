@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 
+#include "sent_messages.h"
 #include "util.h"
 
 namespace railcord::util {
@@ -40,27 +41,27 @@ std::string md5(const std::string& str) {
     return ss.str();
 }
 
-dpp::timer make_alert(dpp::cluster* bot, uint64_t seconds, int interval, const dpp::message& msg) {
-    return bot->start_timer(
-        [bot, msg, interval](dpp::timer t) {
-            bot->message_create(msg, [bot, interval](const dpp::confirmation_callback_t& cc) {
-                if (!cc.is_error()) {
-                    const dpp::message& m = cc.get<dpp::message>();
-                    auto delete_delay =
-                        static_cast<uint64_t>((static_cast<unsigned>(interval) * 60u) + s_delete_message_delay -
-                                              auction::s_discord_extra_delay.count());
-                    bot->start_timer(
-                        [msg_id = m.id, ch_id = m.channel_id, bot](dpp::timer timer) {
-                            logger->info("Deleting msg id = {}", static_cast<uint64_t>(msg_id));
-                            bot->message_delete(msg_id, ch_id);
-                            bot->stop_timer(timer);
-                        },
-                        delete_delay);
-                }
-            });
-            bot->stop_timer(t);
-        },
-        seconds);
+dpp::timer make_alert(dpp::cluster* bot, const alert_data& data, sent_messages* sent_msgs) {
+
+    auto delete_delay = static_cast<uint64_t>(
+        (static_cast<unsigned>(data.interval) * 60u) + s_delete_message_delay - auction::s_discord_extra_delay.count());
+
+    auto delete_msg = [bot, sent_msgs, delete_delay](const dpp::confirmation_callback_t& cc) {
+        if (!cc.is_error()) {
+            const dpp::message& m = cc.get<dpp::message>();
+            sent_msgs->add_message(m.id, m.channel_id);
+
+            util::one_shot_timer(
+                bot, [msg_id = m.id, sent_msgs]() { sent_msgs->delete_message(msg_id, "(alert)"); }, delete_delay);
+        }
+    };
+
+    auto send_msg = std::make_shared<std::function<void()>>([bot, delete_msg, msg = data.msg]() {
+        bot->message_create(msg, delete_msg);
+    });
+
+    return util::one_shot_timer(
+        bot, [send_msg]() { (*send_msg)(); }, data.seconds);
 }
 
 dpp::embed build_embed(std::chrono::system_clock::time_point ends_at, const personality& p, bool with_timer) {

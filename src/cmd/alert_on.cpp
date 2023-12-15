@@ -199,13 +199,13 @@ void Alert_on::handle_button_click(const dpp::button_click_t& event) {
             [bot = &lucy_->bot](const dpp::confirmation_callback_t& cc) {
                 if (!cc.is_error()) {
                     const dpp::message& m = cc.get<dpp::message>();
-                    bot->start_timer(
-                        [msg_id = m.id, ch_id = m.channel_id, bot](dpp::timer timer) {
-                            logger->info("Deleting msg id = {} (preview)", static_cast<uint64_t>(msg_id));
-                            bot->message_delete(msg_id, ch_id);
-                            bot->stop_timer(timer);
+                    util::one_shot_timer(
+                        bot,
+                        [sent_msg = sent_message{m.id, m.channel_id}, bot]() {
+                            logger->info("Deleting msg(preview) id = {}", static_cast<uint64_t>(sent_msg.id));
+                            bot->message_delete(sent_msg.id, sent_msg.channel_id);
                         },
-                        util::s_delete_message_delay);
+                        60u);
                 }
             });
         return;

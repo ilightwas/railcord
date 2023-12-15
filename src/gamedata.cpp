@@ -13,6 +13,7 @@ namespace railcord {
 typedef std::unordered_map<int, std::string> str_map;
 typedef std::unordered_map<int, personality::information> pstats_map;
 typedef std::pair<str_map, str_map> names_desc;
+using json = nlohmann::json;
 
 static pstats_map load_personality_stats(const std::string& stats_file) {
     logger->debug("Loading personality stats...");

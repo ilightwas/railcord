@@ -2,22 +2,27 @@
 #define UTIL_H
 
 #include <fstream>
+#include <functional>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <vector>
 
 #include <dpp/dpp.h>
 #include <dpp/nlohmann/json.hpp>
 
+#include "alert_info.h"
 #include "logger.h"
 #include "personality.h"
-#include "personality_watcher.h"
 
 namespace railcord {
 class Gamedata;
-}
+class sent_messages;
+}   // namespace railcord
 
 namespace railcord::util {
 
-inline constexpr auto s_inv_space = "‎ ";
+inline constexpr auto s_inv_space = "‎";
 inline constexpr uint64_t s_delete_message_delay = 180;
 
 template <typename Tp>
@@ -86,13 +91,22 @@ std::string fmt_to_hr_min_sec(Duration d) {
     return tmp;
 }
 
+inline dpp::timer one_shot_timer(dpp::cluster* bot, std::function<void()> f, uint64_t seconds) {
+    return bot->start_timer(
+        [bot, f](dpp::timer t) {
+            f();
+            bot->stop_timer(t);
+        },
+        seconds);
+}
+
 inline int as_int(const nlohmann::json& j) { return std::stoi(j.get<std::string>()); }
 inline bool starts_with(const std::string& s, const std::string& prefix) { return (s.rfind(prefix, 0) == 0); }
 
 std::string get_token(const std::string& token_file);
 std::string md5(const std::string& str);
 
-dpp::timer make_alert(dpp::cluster* bot, uint64_t seconds, int interval, const dpp::message& msg);
+dpp::timer make_alert(dpp::cluster* bot, const alert_data& data, sent_messages* sent_msgs);
 dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
 
 std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https = false);

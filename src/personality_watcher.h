@@ -14,6 +14,7 @@
 #include <dpp/dpp.h>
 
 #include "personality.h"
+#include "sent_messages.h"
 
 namespace railcord {
 
@@ -39,7 +40,7 @@ class personality_watcher {
     void set_using_local_time(bool use_local_time) { use_local_time_ = use_local_time; }
 
     static constexpr int s_request_auction_timeout = 30;   // seconds
-    static constexpr int s_sync_time_timeout = 30; // seconds
+    static constexpr int s_sync_time_timeout = 30;         // seconds
     static constexpr int s_max_tries = 5;
 
   private:
@@ -72,6 +73,7 @@ class personality_watcher {
     std::chrono::system_clock::time_point server_time_;
 
     std::deque<std::chrono::seconds> wait_times_;
+    sent_messages sent_msgs_;
 };
 }   // namespace railcord
 

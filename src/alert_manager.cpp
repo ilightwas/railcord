@@ -15,7 +15,7 @@ using namespace std::chrono;
 /// ---------------------------------------- PUBLIC ---------------------------------------
 #pragma region PUBLIC
 
-Alert_Manager::Alert_Manager(dpp::cluster* bot) : bot_(bot) {
+Alert_Manager::Alert_Manager(dpp::cluster* bot) : bot_(bot), sent_msgs_(bot) {
     for (uint8_t type = personality::type::goods; type < personality::type::unknown; ++type) {
         alerts_.emplace_back(type);
     }
@@ -93,10 +93,10 @@ dpp::message Alert_Manager::build_alert_message(const personality& p, system_clo
 
     dpp::message m;
     m.content
-        .append(
-            fmt::format("{} {} left to deadline\n{} worker", interval, interval == 1 ? "minute" : "minutes", p.info.ptype.description()))
+        .append(fmt::format("{} {} left to deadline\n{} worker", interval, interval == 1 ? "minute" : "minutes",
+                            p.info.ptype.description()))
         .append("\n")
-        .append(util::timepoint_to_discord_timestamp(ends_at, "T"))
+        .append(util::timepoint_to_discord_timestamp(ends_at, "t"))
         .append("\n**## ")
         .append(util::timepoint_to_discord_timestamp(ends_at))
         .append("**")
@@ -148,6 +148,7 @@ void Alert_Manager::reset_alerts() {
 
     active_auctions_.clear();
     seen_auction_ids_.clear();
+    sent_msgs_.delete_all_messages();
 }
 
 void Alert_Manager::refresh_active_auctions() {
@@ -212,11 +213,13 @@ void Alert_Manager::update_alerts(personality::type t) {
                     auto delay = ac_auction.wait_delay_for_interval(interval);
                     logger->debug("Alert in: {} {}", util::fmt_to_hr_min_sec(delay), ac_auction.p->name);
 
-                    add_timer(
-                        ac_auction.id, interval,
-                        util::make_alert(
-                            bot_, static_cast<uint64_t>(duration_cast<seconds>(delay).count()), interval,
-                            build_alert_message(*ac_auction.p, ac_auction.client_ends_at(), alert.msg(), interval)));
+                    add_timer(ac_auction.id, interval,
+                              util::make_alert(
+                                  bot_,
+                                  alert_data{static_cast<uint64_t>(duration_cast<seconds>(delay).count()), interval,
+                                             build_alert_message(*ac_auction.p, ac_auction.client_ends_at(),
+                                                                 alert.msg(), interval)},
+                                  &sent_msgs_));
                 }
             } else {
                 if (!ac_auction.has_interval_timer(interval)) {

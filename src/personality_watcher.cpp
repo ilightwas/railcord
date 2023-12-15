@@ -14,12 +14,13 @@
 namespace railcord {
 
 using namespace std::chrono;
+using json = nlohmann::json;
 
 /// ---------------------------------------- PUBLIC ---------------------------------------
 #pragma region PUBLIC
 
 personality_watcher::personality_watcher(dpp::cluster* bot, Gamedata* g, Alert_Manager* al_mn)
-    : bot_(bot), gamedata(g), alert_manager_(al_mn), watching_(false) {}
+    : bot_(bot), gamedata(g), alert_manager_(al_mn), watching_(false), sent_msgs_(bot) {}
 
 personality_watcher::~personality_watcher() {
     watching_.store(false);
@@ -251,39 +252,37 @@ system_clock::time_point personality_watcher::server_time_now() {
 
 void personality_watcher::send_discord_msg(const dpp::message& msg, std::shared_ptr<std::atomic<int>>& last_tries,
                                            system_clock::duration wait_delete) {
-    bot_->message_create(
-        msg, [w_ptr = std::weak_ptr{last_tries}, wait_delete, bot = bot_](const dpp::confirmation_callback_t& cc) {
-            auto tries = w_ptr.lock();
+    bot_->message_create(msg, [w_ptr = std::weak_ptr{last_tries}, wait_delete, bot = bot_,
+                               sent_msgs = &sent_msgs_](const dpp::confirmation_callback_t& cc) {
+        auto tries = w_ptr.lock();
 
-            if (cc.is_error()) {
-                logger->warn("Bot failed to create personality message: {}", cc.get_error().message);
-                if (tries) {
-                    tries->fetch_add(1);
-                }
-                return;
-            }
-
+        if (cc.is_error()) {
+            logger->warn("Bot failed to create personality message: {}", cc.get_error().message);
             if (tries) {
-                int tmp_tries = tries->load();
-                if (tmp_tries > 0) {
-                    tries->fetch_sub(1);
-                }
+                tries->fetch_add(1);
             }
+            return;
+        }
 
-            const dpp::message& m = cc.get<dpp::message>();
-            bot->start_timer(
-                [msg_id = m.id, ch_id = m.channel_id, bot](dpp::timer timer) {
-                    logger->info("Deleting msg id = {} (non alert)", static_cast<uint64_t>(msg_id));
-                    bot->message_delete(msg_id, ch_id);
-                    bot->stop_timer(timer);
-                },
-                static_cast<uint64_t>(duration_cast<seconds>(wait_delete).count()) + util::s_delete_message_delay);
-        });
+        if (tries) {
+            int tmp_tries = tries->load();
+            if (tmp_tries > 0) {
+                tries->fetch_sub(1);
+            }
+        }
+
+        const dpp::message& m = cc.get<dpp::message>();
+        sent_msgs->add_message(m.id, m.channel_id);
+        util::one_shot_timer(
+            bot, [msg_id = m.id, sent_msgs]() { sent_msgs->delete_message(msg_id, "(non alert)"); },
+            static_cast<uint64_t>(duration_cast<seconds>(wait_delete).count()) + util::s_delete_message_delay);
+    });
 }
 
 void personality_watcher::reset() {
     wait_times_.clear();
     alert_manager_->reset_alerts();
+    sent_msgs_.delete_all_messages();
 }
 
 #pragma endregion PRIVATE

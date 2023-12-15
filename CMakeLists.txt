@@ -51,6 +51,7 @@ find_package(spdlog CONFIG REQUIRED)
 find_package(unofficial-inih CONFIG REQUIRED)
 find_package(pugixml CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(cpr CONFIG REQUIRED)
 
 target_link_libraries(lucy PRIVATE
   dpp::dpp
@@ -58,4 +59,5 @@ target_link_libraries(lucy PRIVATE
   spdlog::spdlog
   unofficial::inih::inireader
   pugixml::pugixml
-  OpenSSL::Crypto)
+  OpenSSL::Crypto
+  cpr::cpr)

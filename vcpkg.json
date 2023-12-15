@@ -3,10 +3,11 @@
   "name": "railcord",
   "dependencies": [
     "dpp",
+    "fmt",
     "spdlog",
     "inih",
     "pugixml",
     "openssl",
-    "fmt"
+    "cpr"
   ]
 }

@@ -4,6 +4,8 @@
 #include <memory>
 #include <vector>
 
+#include <cpr/cpr.h>
+
 #include "alert_manager.h"
 #include "gamedata.h"
 #include "logger.h"
@@ -138,37 +140,57 @@ void personality_watcher::personality_update() {
 }
 
 std::optional<std::vector<auction>> personality_watcher::request_auctions() {
-    auto promise = std::make_shared<std::promise<nlohmann::json>>();
-
-    auto f = promise->get_future();
-
-    bot_->request(api_endpoints.at(api::personality_id), dpp::http_method::m_get,
-                  [promise](const dpp::http_request_completion_t& request) {
-                      if (request.status == 200) {
-                          try {
-                              promise->set_value(nlohmann::json::parse(request.body));
-                          } catch (const json::exception& e) {
-                              promise->set_exception(std::make_exception_ptr(e));
-                          }
-                      } else {
-                          promise->set_exception(std::make_exception_ptr(std::runtime_error{
-                              fmt::format("Personality request failed with status {}", request.status)}));
-                      }
-                  });
-
-    std::future_status status = f.wait_for(std::chrono::seconds{s_request_auction_timeout});
-
-    if (status != std::future_status::ready) {
-        logger->warn("Personalities request request timed out");
+    cpr::Response r =
+        cpr::Get(cpr::Url{api_endpoints.at(api::personality_id)}, cpr::Timeout{seconds{s_request_auction_timeout}});
+    if (r.status_code != 200) {
+        if (r.status_code == 0) {
+            logger->warn("Personalities request timed out");
+        } else {
+            logger->warn("Personalities request failed with status code={}", r.status_code);
+        }
         return {};
     }
 
     try {
-        return f.get().at("Body").at("Personalities").at("auctions").get<std::vector<auction>>();
+        return nlohmann::json::parse(r.text).at("Body").at("Personalities").at("auctions").get<std::vector<auction>>();
+    } catch (const json::exception& e) {
+        logger->warn("Parsing json failed with: {}", e.what());
+        return {};
     } catch (const std::exception& e) {
         logger->warn("request_personalities failed with: {}", e.what());
         return {};
     }
+
+    // auto promise = std::make_shared<std::promise<nlohmann::json>>();
+    // auto f = promise->get_future();
+
+    // bot_->request(api_endpoints.at(api::personality_id), dpp::http_method::m_get,
+    //               [promise](const dpp::http_request_completion_t& request) {
+    //                   if (request.status == 200) {
+    //                       try {
+    //                           promise->set_value(nlohmann::json::parse(request.body));
+    //                       } catch (const json::exception& e) {
+    //                           promise->set_exception(std::make_exception_ptr(e));
+    //                       }
+    //                   } else {
+    //                       promise->set_exception(std::make_exception_ptr(std::runtime_error{
+    //                           fmt::format("Personality request failed with status {}", request.status)}));
+    //                   }
+    //               });
+
+    // std::future_status status = f.wait_for(std::chrono::seconds{s_request_auction_timeout});
+
+    // if (status != std::future_status::ready) {
+    //     logger->warn("Personalities request timed out");
+    //     return {};
+    // }
+
+    // try {
+    //     return f.get().at("Body").at("Personalities").at("auctions").get<std::vector<auction>>();
+    // } catch (const std::exception& e) {
+    //     logger->warn("request_personalities failed with: {}", e.what());
+    //     return {};
+    // }
 }
 
 bool personality_watcher::sync_time() {
@@ -282,7 +304,7 @@ void personality_watcher::send_discord_msg(const dpp::message& msg, std::shared_
 void personality_watcher::reset() {
     wait_times_.clear();
     alert_manager_->reset_alerts();
-    sent_msgs_.delete_all_messages();
+    sent_msgs_.delete_all_messages(true);
 }
 
 #pragma endregion PRIVATE

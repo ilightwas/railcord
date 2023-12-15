@@ -38,16 +38,25 @@ void sent_messages::delete_message(const dpp::snowflake id, const std::string& i
 
 void sent_messages::delete_all_messages(bool wait_deletion) {
     std::lock_guard<std::mutex> lock{mtx_};
+
+    if (msgs_.empty()) {
+        return;
+    }
+
+    std::function<void(const sent_message&)> delete_msg;
+    if (wait_deletion) {
+        logger->info("Waiting for message deletion");
+        delete_msg = [&](const sent_message& msg) { bot_->message_delete_sync(msg.id, msg.channel_id); };
+    } else {
+        delete_msg = [&](const sent_message& msg) { bot_->message_delete(msg.id, msg.channel_id); };
+    }
+
     for (const auto& msg : msgs_) {
         logger->info("Deleting message(all) id={}", static_cast<uint64_t>(msg.id));
-        if (wait_deletion) {
-            try {
-                bot_->message_delete_sync(msg.id, msg.channel_id);
-            } catch (const dpp::rest_exception& e) {
-                logger->warn("Deleting message(all) id={} failed with: {}", static_cast<uint64_t>(msg.id), e.what());
-            }
-        } else {
-            bot_->message_delete(msg.id, msg.channel_id);
+        try {
+            delete_msg(msg);
+        } catch (const dpp::rest_exception& e) {
+            logger->warn("Deleting message(all) id={} failed with: {}", static_cast<uint64_t>(msg.id), e.what());
         }
     }
     msgs_.clear();

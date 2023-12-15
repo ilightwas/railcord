@@ -39,8 +39,8 @@ class personality_watcher {
     bool is_using_local_time() { return use_local_time_; }
     void set_using_local_time(bool use_local_time) { use_local_time_ = use_local_time; }
 
-    static constexpr int s_request_auction_timeout = 30;   // seconds
-    static constexpr int s_sync_time_timeout = 30;         // seconds
+    static constexpr int s_request_auction_timeout = 90;   // seconds
+    static constexpr int s_sync_time_timeout = 90;         // seconds
     static constexpr int s_max_tries = 5;
 
   private:

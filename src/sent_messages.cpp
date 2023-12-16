@@ -5,27 +5,27 @@
 
 namespace railcord {
 
-sent_messages::sent_messages(dpp::cluster* bot) : bot_(bot) {}
+Sent_Messages::Sent_Messages(dpp::cluster* bot) : bot_(bot) {}
 
-sent_messages::~sent_messages() { delete_all_messages(true); }
+Sent_Messages::~Sent_Messages() { delete_all_messages(true); }
 
-void sent_messages::add_message(const sent_message& msg) {
+void Sent_Messages::add_message(const Sent_Message& msg) {
     std::lock_guard<std::mutex> lock{mtx_};
     msgs_.push_back(msg);
 }
 
-void sent_messages::add_message(const dpp::snowflake id, const dpp::snowflake channel_id) {
+void Sent_Messages::add_message(const dpp::snowflake id, const dpp::snowflake channel_id) {
     std::lock_guard<std::mutex> lock{mtx_};
     msgs_.emplace_back(id, channel_id);
 }
 
-void sent_messages::remove_message(const dpp::snowflake id) {
+void Sent_Messages::remove_message(const dpp::snowflake id) {
     std::lock_guard<std::mutex> lock{mtx_};
     msgs_.erase(
         std::remove_if(msgs_.begin(), msgs_.end(), [&](const auto& stored_msg) { return stored_msg.id == id; }));
 }
 
-void sent_messages::delete_message(const dpp::snowflake id, const std::string& info) {
+void Sent_Messages::delete_message(const dpp::snowflake id, const std::string& info) {
     std::unique_lock<std::mutex> lock{mtx_};
     auto it = std::find_if(msgs_.begin(), msgs_.end(), [&](const auto& stored_msg) { return stored_msg.id == id; });
     if (it != msgs_.end()) {
@@ -36,19 +36,19 @@ void sent_messages::delete_message(const dpp::snowflake id, const std::string& i
     }
 }
 
-void sent_messages::delete_all_messages(bool wait_deletion) {
+void Sent_Messages::delete_all_messages(bool wait_deletion) {
     std::lock_guard<std::mutex> lock{mtx_};
 
     if (msgs_.empty()) {
         return;
     }
 
-    std::function<void(const sent_message&)> delete_msg;
+    std::function<void(const Sent_Message&)> delete_msg;
     if (wait_deletion) {
         logger->info("Waiting for message deletion");
-        delete_msg = [&](const sent_message& msg) { bot_->message_delete_sync(msg.id, msg.channel_id); };
+        delete_msg = [&](const Sent_Message& msg) { bot_->message_delete_sync(msg.id, msg.channel_id); };
     } else {
-        delete_msg = [&](const sent_message& msg) { bot_->message_delete(msg.id, msg.channel_id); };
+        delete_msg = [&](const Sent_Message& msg) { bot_->message_delete(msg.id, msg.channel_id); };
     }
 
     for (const auto& msg : msgs_) {

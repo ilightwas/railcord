@@ -1,7 +1,7 @@
 #define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/md5.h>
 
-#include <random>
+#include <mutex>
 #include <sstream>
 #include <string>
 
@@ -41,7 +41,7 @@ std::string md5(const std::string& str) {
     return ss.str();
 }
 
-dpp::timer make_alert(dpp::cluster* bot, const alert_data& data, sent_messages* sent_msgs) {
+dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs) {
 
     auto delete_delay = static_cast<uint64_t>(
         (static_cast<unsigned>(data.interval) * 60u) + s_delete_message_delay - auction::s_discord_extra_delay.count());
@@ -104,10 +104,49 @@ std::string fmt_http_request(const std::string& server, int port, const std::str
 }
 
 uint32_t rnd_color() {
-    static std::mt19937 gen(std::random_device{}());
-    static std::uniform_int_distribution<uint32_t> dis;
     // Generate a random uint32_t value
-    return dis(gen);
+    return rnd_gen([&](auto& gen) {
+        std::uniform_int_distribution<uint32_t> dis;
+        return dis(gen);
+    });
+}
+
+std::string rnd_emoji(uint32_t idx) {
+    static const nlohmann::json emojis = []() {
+        std::ifstream f{"resources/emojis.json"};
+        try {
+            return nlohmann::json::parse(f);
+        } catch (const json::exception& e) {
+            logger->warn("Parsing emoji failed with: {}", e.what());
+            return nlohmann::json{};
+        }
+    }();
+
+    static const std::vector<std::string> keys = [&]() {
+        std::vector<std::string> k;
+        for (auto it = emojis.begin(); it != emojis.end(); ++it) {
+            k.push_back(it.key());
+        }
+        return k;
+    }();
+
+    if (idx) {
+        return emojis[keys[idx % (keys.size() - 1ull)]];
+    }
+    // Generate a random index within the vector's bounds
+    std::uniform_int_distribution<uint32_t> distribution(
+        0, std::max<uint32_t>(0, static_cast<uint32_t>(keys.size() - 1ull)));
+    uint32_t rnd_idx = rnd_gen([&](auto& gen) { return distribution(gen); });
+
+    return emojis[keys[rnd_idx]];
+}
+
+uint32_t rnd_gen(std::function<uint32_t(std::mt19937& gen)> f) {
+    static std::mutex mtx;
+    static std::mt19937 gen(std::random_device{}());
+
+    std::lock_guard<std::mutex> lock{mtx};
+    return f(gen);
 }
 
 }   // namespace railcord::util

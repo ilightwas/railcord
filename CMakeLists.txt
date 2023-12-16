@@ -22,7 +22,9 @@ add_executable(lucy
   src/cmd/watch.cpp
   src/cmd/stop_watch.cpp
   src/cmd/set_channel.cpp
-  src/cmd/alert_on.cpp)
+  src/cmd/alert_on.cpp
+  src/cmd/save_settings.cpp
+  src/cmd/remove_custom_message.cpp)
 
 target_include_directories(lucy PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_features(lucy PRIVATE cxx_std_17)

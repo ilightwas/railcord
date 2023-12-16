@@ -89,11 +89,18 @@ void Lucy::load_settings() {
     custom_emojis_.emplace_back("rnback", settings->GetUnsigned64("Lucy", "rnback", 0));
 
     delete settings;
+
+    if (alert_manager_.load_state()) {
+        logger->info("Alert manager state loaded");
+    } else {
+        throw std::runtime_error{"Failed to load the alert manager state"};
+    }
 }
 
 void Lucy::shutdown() {
     static std::once_flag s_flag;
     std::call_once(s_flag, [this]() {
+        alert_manager_.save_state();
         (void) std::async(std::launch::async, [this]() {
             running_.store(false);
             std::this_thread::sleep_for(std::chrono::seconds{5});
@@ -120,6 +127,8 @@ void Lucy::load_commands() {
     cmd_handler.add_command(new cmd::Shutdown(this));
     cmd_handler.add_command(new cmd::Set_channel(this));
     cmd_handler.add_command(new cmd::Alert_on(this));
+    cmd_handler.add_command(new cmd::Save_Settings(this));
+    cmd_handler.add_command(new cmd::Remove_Custom_Message(this));
 }
 
 }   // namespace railcord

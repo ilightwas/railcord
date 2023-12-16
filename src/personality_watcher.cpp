@@ -115,7 +115,12 @@ void personality_watcher::personality_update() {
 
                     dpp::message msg;
                     msg.channel_id = alert_manager_->get_alert_channel();
-                    msg.add_embed(util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true));
+                    auto e = util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true);
+                    auto type = new_active_auction.p->info.ptype;
+                    if (alert_manager_->has_horizon_message(type)) {
+                        e.add_field("", alert_manager_->get_horizon_message(type));
+                    }
+                    msg.add_embed(e);
 
                     send_discord_msg(msg, tries,
                                      std::chrono::abs(new_active_auction.end_time - auction::s_discord_extra_delay));

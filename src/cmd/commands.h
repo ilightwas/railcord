@@ -108,6 +108,24 @@ class Alert_on : public Base_Cmd {
     dpp::message build_button_menu_msg(personality::type t);
 };
 
+class Save_Settings : public Base_Cmd {
+  public:
+    Save_Settings(Lucy* lucy);
+
+    dpp::slashcommand build() override;
+    void handle_slash_interaction(const dpp::slashcommand_t& event) override;
+};
+
+class Remove_Custom_Message : public Base_Cmd {
+  public:
+    Remove_Custom_Message(Lucy* lucy);
+
+    dpp::slashcommand build() override;
+    void handle_slash_interaction(const dpp::slashcommand_t& event) override;
+    void handle_select_click(const dpp::select_click_t&) override;
+    std::optional<std::string> handler_prefix() override;
+};
+
 template <typename Arg1, typename Arg2, typename... Params>
 std::string build_id(Arg1 prefix, Arg2 handler, Params&&... params) {
     std::string id{prefix};

@@ -39,6 +39,8 @@ struct personality {
         };
 
         type(uint8_t t) : t(t) {}
+        type() : t(unknown) {}
+
         type(int t) : t(static_cast<uint8_t>(t)) {}
         operator uint8_t() const { return t; }
 
@@ -72,6 +74,8 @@ struct personality {
         }
 
         uint8_t t{};
+
+        NLOHMANN_DEFINE_TYPE_INTRUSIVE(personality::type, t)
     };
 
     struct information {

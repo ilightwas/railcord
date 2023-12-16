@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <chrono>
+#include <fstream>
 
+#include <dpp/nlohmann/json.hpp>
 #include <fmt/format.h>
 
 #include "alert_manager.h"
@@ -11,13 +13,14 @@
 namespace railcord {
 
 using namespace std::chrono;
+using json = nlohmann::json;
 
 /// ---------------------------------------- PUBLIC ---------------------------------------
 #pragma region PUBLIC
 
 Alert_Manager::Alert_Manager(dpp::cluster* bot) : bot_(bot), sent_msgs_(bot) {
     for (uint8_t type = personality::type::goods; type < personality::type::unknown; ++type) {
-        alerts_.emplace_back(type);
+        alerts_info_.emplace_back(type);
     }
 }
 
@@ -110,14 +113,40 @@ dpp::message Alert_Manager::build_alert_message(const personality& p, system_clo
     return m;
 }
 
-const std::string& Alert_Manager::get_alert_message(personality::type t) {
+std::string Alert_Manager::get_alert_message(personality::type t) {
     std::shared_lock<std::shared_mutex> lock{mtx_};
     return get_alert_by_type(t).msg();
 }
 
 void Alert_Manager::set_alert_message(personality::type t, const std::string& msg) {
     std::unique_lock<std::shared_mutex> lock{mtx_};
-    get_alert_by_type(t).set_msg(msg);
+    auto& alert = get_alert_by_type(t);
+    alert.set_msg(msg);
+    if (alert.is_enabled()) {
+        stop_timers(t);
+        update_alerts(t);
+    }
+}
+
+bool Alert_Manager::has_alert_message(personality::type t) {
+    std::shared_lock<std::shared_mutex> lock{mtx_};
+    return !get_alert_by_type(t).msg().empty();
+}
+
+std::string Alert_Manager::get_horizon_message(personality::type t) {
+    std::shared_lock<std::shared_mutex> lock{mtx_};
+    return get_alert_by_type(t).horizon_msg();
+}
+
+void Alert_Manager::set_horizon_message(personality::type t, const std::string& msg) {
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+    auto& alert = get_alert_by_type(t);
+    alert.set_horizon_msg(msg);
+}
+
+bool Alert_Manager::has_horizon_message(personality::type t) {
+    std::shared_lock<std::shared_mutex> lock{mtx_};
+    return !get_alert_by_type(t).horizon_msg().empty();
 }
 
 dpp::snowflake Alert_Manager::get_alert_role() {
@@ -138,6 +167,132 @@ dpp::snowflake Alert_Manager::get_alert_channel() {
 void Alert_Manager::set_alert_channel(dpp::snowflake channel) {
     std::unique_lock<std::shared_mutex> lock{mtx_};
     alert_channel_ = channel;
+}
+
+std::vector<Alert_Info> Alert_Manager::get_alerts_info() {
+    std::shared_lock<std::shared_mutex> lock{mtx_};
+    return alerts_info_;
+}
+
+void Alert_Manager::set_alerts_info(std::vector<Alert_Info> alerts_info) {
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+    alerts_info_ = std::move(alerts_info);
+}
+
+void Alert_Manager::add_custom_message(const std::string& title, const std::string& msg) {
+    static int id = 0;
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+    auto it = custom_msgs_.begin();
+    while (it != custom_msgs_.end()) {
+        it = std::find_if(custom_msgs_.begin(), custom_msgs_.end(),
+                          [&](const auto& stored_msg) { return stored_msg.id == id++; });
+    }
+
+    custom_msgs_.emplace_back(id, title, msg);
+}
+
+void Alert_Manager::remove_custom_message(int id) {
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+    auto it = std::find_if(custom_msgs_.begin(), custom_msgs_.end(), [&](const auto& msg) { return msg.id == id; });
+    if (it != custom_msgs_.end()) {
+        logger->info("Removed message id={}, title={}", it->id, it->title);
+        custom_msgs_.erase(it);
+    }
+}
+
+std::vector<Custom_Message> Alert_Manager::get_custom_msgs() {
+    std::shared_lock<std::shared_mutex> lock{mtx_};
+    return custom_msgs_;
+}
+
+void Alert_Manager::set_custom_msgs(std::vector<Custom_Message> custom_msgs) {
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+    custom_msgs_ = std::move(custom_msgs);
+}
+
+bool Alert_Manager::set_custom_msg_for_alert(personality::type t, int id) {
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+    auto it = std::find_if(custom_msgs_.begin(), custom_msgs_.end(), [&](const auto& msg) { return msg.id == id; });
+
+    if (it == custom_msgs_.end()) {
+        logger->error("No message with id={} found when setting alert msg for type={}", id, t.description());
+        return false;
+    }
+    const auto msg = *it;   // copy for now
+    lock.unlock();          // remember no recursive lock
+    set_alert_message(t, msg.body);
+    logger->info("Set alert message with id={}, title={} for {}", msg.id, msg.title, t.description());
+    return true;
+}
+
+bool Alert_Manager::set_custom_msg_for_horizon(personality::type t, int id) {
+    std::unique_lock<std::shared_mutex> lock{mtx_};
+
+    auto it = std::find_if(custom_msgs_.begin(), custom_msgs_.end(), [&](const auto& msg) { return msg.id == id; });
+
+    if (it == custom_msgs_.end()) {
+        logger->error("No message with id={} found when setting horizon msg for type={}", id, t.description());
+        return false;
+    }
+    const auto msg = *it;   // copy for now
+    lock.unlock();          // remember no recursive lock
+    set_horizon_message(t, msg.body);
+    logger->info("Set horizon message with id={}, title={} for {}", msg.id, msg.title, t.description());
+    return true;
+}
+
+bool Alert_Manager::has_custom_msgs() {
+    std::shared_lock<std::shared_mutex> lock{mtx_};
+    return !custom_msgs_.empty();
+}
+
+bool Alert_Manager::load_state() {
+    std::ifstream f{s_alert_manager_file};
+    if (f.is_open()) {
+        try {
+            json j = json::parse(f);
+            if (j.contains("alerts_info")) {
+                auto alerts_info = j.at("alerts_info").get<std::vector<Alert_Info>>();
+                set_alerts_info(std::move(alerts_info));
+            }
+
+            if (j.contains("custom_msgs")) {
+                auto custom_msgs = j.at("custom_msgs").get<std::vector<Custom_Message>>();
+                set_custom_msgs(std::move(custom_msgs));
+            }
+            logger->info("Successfully loaded alert manager state from file");
+            return true;
+        } catch (const json::exception& e) {
+            logger->warn("Parsing state json(load) failed with: {}", e.what());
+            return false;
+        }
+    } else {
+        logger->error("Failed to open the alert manager file (on load)");
+    }
+
+    logger->warn("Using default alert manager state");
+    return true;
+}
+
+bool Alert_Manager::save_state() {
+    std::ofstream f{s_alert_manager_file};
+    if (f.is_open()) {
+        try {
+            json j;
+            j["alerts_info"] = get_alerts_info();
+            j["custom_msgs"] = get_custom_msgs();
+            f << j;
+        } catch (const json::exception& e) {
+            logger->warn("Parsing state json(save) failed with: {}", e.what());
+            return false;
+        }
+    } else {
+        logger->error("Failed to open the alert manager state file (on save)");
+        return false;
+    }
+
+    logger->info("Successfully saved the alert manager state");
+    return true;
 }
 
 void Alert_Manager::reset_alerts() {
@@ -165,7 +320,7 @@ void Alert_Manager::refresh_active_auctions() {
 
 Alert_Info& Alert_Manager::get_alert_by_type(personality::type t) {
     if (t < personality::type::unknown) {
-        return alerts_[t];
+        return alerts_info_[t];
     }
     throw std::invalid_argument{fmt::format("Invalid personality type \"{}\" for indexing alerts", t.t)};
 }
@@ -194,6 +349,17 @@ void Alert_Manager::stop_timers(const std::string& id) {
     ac_auction.timers_.clear();
 }
 
+void Alert_Manager::stop_timers(personality::type t) {
+    for (auto& ac_auction : active_auctions_) {
+        if (ac_auction.p->info.ptype == t) {
+            for (const auto& [interval, timer] : ac_auction.timers_) {
+                bot_->stop_timer(timer);
+            }
+            ac_auction.timers_.clear();
+        }
+    }
+}
+
 void Alert_Manager::update_alerts(personality::type t) {
     for (auto& ac_auction : active_auctions_) {
         if (ac_auction.has_ended() || ac_auction.p->info.ptype != t) {
@@ -216,7 +382,7 @@ void Alert_Manager::update_alerts(personality::type t) {
                     add_timer(ac_auction.id, interval,
                               util::make_alert(
                                   bot_,
-                                  alert_data{static_cast<uint64_t>(duration_cast<seconds>(delay).count()), interval,
+                                  Alert_Data{static_cast<uint64_t>(duration_cast<seconds>(delay).count()), interval,
                                              build_alert_message(*ac_auction.p, ac_auction.client_ends_at(),
                                                                  alert.msg(), interval)},
                                   &sent_msgs_));

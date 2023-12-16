@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,7 @@
 
 namespace railcord {
 class Gamedata;
-class sent_messages;
+class Sent_Messages;
 }   // namespace railcord
 
 namespace railcord::util {
@@ -106,11 +107,13 @@ inline bool starts_with(const std::string& s, const std::string& prefix) { retur
 std::string get_token(const std::string& token_file);
 std::string md5(const std::string& str);
 
-dpp::timer make_alert(dpp::cluster* bot, const alert_data& data, sent_messages* sent_msgs);
+dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs);
 dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
 
 std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https = false);
 uint32_t rnd_color();
+std::string rnd_emoji(uint32_t idx = 0);
+uint32_t rnd_gen(std::function<uint32_t(std::mt19937& gen)> f);
 
 }   // namespace railcord::util
 

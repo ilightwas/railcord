@@ -10,7 +10,7 @@ app = Flask(__name__)
 bot: webbot.Webbot = None
 corp_json: str = ""
 server_time_json: str = ""
-testing: bool = True
+testing: bool = False
 
 
 @app.route(f'/{webbot.webbotconfig["Lucy.personality_endpoint"]}')
@@ -20,7 +20,7 @@ def corporation():
     try:
         res = bot.get_corp_info()
         if res:
-            return Response(res.json(), status=HTTPStatus.OK, mimetype="application/json")
+            return Response(res.text, status=HTTPStatus.OK, mimetype="application/json")
         else:
             return Response(status=HTTPStatus.NO_CONTENT)
     except:
@@ -39,7 +39,7 @@ def servertime():
     try:
         res = bot.get_servertime()
         if res:
-            return Response(res.json(), status=HTTPStatus.OK, mimetype="application/json")
+            return Response(res.text, status=HTTPStatus.OK, mimetype="application/json")
         else:
             return Response(status=HTTPStatus.NO_CONTENT)
     except:

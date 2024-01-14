@@ -37,7 +37,7 @@ class Lucy {
     personality_watcher* watcher() { return &watcher_; }
     const std::vector<dpp::snowflake>& user_whitelist() { return whitelist_; }
     const std::vector<dpp::emoji>& custom_emojis() { return custom_emojis_; }
-
+    dpp::snowflake bot_admin_role() const { return bot_admin_role_; }
     static dpp::snowflake s_bot_owner;
 
     dpp::cluster bot;
@@ -55,6 +55,7 @@ class Lucy {
     Alert_Manager alert_manager_;
     personality_watcher watcher_;
     cmd::Command_handler cmd_handler;
+    dpp::snowflake bot_admin_role_;
     std::vector<dpp::snowflake> whitelist_;
     std::vector<dpp::emoji> custom_emojis_;
 };

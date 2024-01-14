@@ -79,6 +79,12 @@ void Lucy::load_settings() {
 
     alert_manager_.set_alert_channel(settings->GetUnsigned64("Lucy", "channel", 0));
     alert_manager_.set_alert_role(settings->GetUnsigned64("Lucy", "alert_role", 0));
+
+    bot_admin_role_ = settings->GetUnsigned64("Lucy", "bot_admin_role", 0);
+    if(bot_admin_role_.empty()) {
+        logger->warn("Bot admin role default initialized to 0");
+    }
+
     watcher_.set_using_local_time(settings->GetInteger("Lucy", "use_local_time", 1));
 
     test_server = settings->GetUnsigned64("Lucy", "test_server", 0);

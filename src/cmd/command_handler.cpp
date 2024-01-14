@@ -18,15 +18,28 @@ Command_handler::~Command_handler() {
     }
 }
 
+static bool can_use_command(const dpp::slashcommand_t& event, Lucy* lucy) {
+    const auto& whitelist = lucy->user_whitelist();
+    const auto& member = event.command.member;
+
+    auto found = std::find(whitelist.cbegin(), whitelist.cend(), member.user_id);
+    if (found != whitelist.end()) {
+        return true;
+    }
+
+    found = std::find(member.roles.cbegin(), member.roles.cend(), lucy->bot_admin_role());
+    if (found != member.roles.end()) {
+        return true;
+    }
+
+    return false;
+}
+
 void Command_handler::on_slash_cmd(Lucy* lucy) {
     lucy->bot.on_slashcommand([this, lucy](const dpp::slashcommand_t& event) {
-        {
-            auto whitelist = lucy->user_whitelist();
-            auto user = std::find(whitelist.begin(), whitelist.end(), event.command.usr.id);
-            if (user == whitelist.end()) {
-                event.reply(dpp::message{"You have no permissions for this command!"}.set_flags(dpp::m_ephemeral));
-                return;
-            }
+        if (!can_use_command(event, lucy)) {
+            event.reply(dpp::message{"You have no permissions for this command!"}.set_flags(dpp::m_ephemeral));
+            return;
         }
 
         const std::string& command_name = event.command.get_command_name();

@@ -10,6 +10,8 @@
 
 namespace railcord::util {
 
+using json = nlohmann::json;
+
 std::string get_token(const std::string& token_file) {
 
     std::ifstream tk(token_file);

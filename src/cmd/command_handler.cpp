@@ -27,8 +27,8 @@ static bool can_use_command(const dpp::slashcommand_t& event, Lucy* lucy) {
         return true;
     }
 
-    found = std::find(member.roles.cbegin(), member.roles.cend(), lucy->bot_admin_role());
-    if (found != member.roles.end()) {
+    found = std::find(member.get_roles().cbegin(), member.get_roles().cend(), lucy->bot_admin_role());
+    if (found != member.get_roles().end()) {
         return true;
     }
 

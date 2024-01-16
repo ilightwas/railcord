@@ -71,7 +71,7 @@ void personality_watcher::personality_update() {
     }
 
     while (watching_.load()) {
-        if (int tmp_tries = (*tries) != 0) {
+        if (int tmp_tries = *tries; tmp_tries != 0) {
             if (tmp_tries > s_max_tries) {
                 logger->warn("Failed to update personalities {} times, stopping thread..", s_max_tries);
                 watching_.store(false);

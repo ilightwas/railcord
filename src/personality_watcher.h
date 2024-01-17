@@ -34,7 +34,7 @@ class personality_watcher {
 
     void run();
     void stop();
-    bool is_watching() { return watching_.load(); }
+    bool is_watching();
     void set_active_only_horizon_msg(bool enabled) { active_only_horizon_msg_ = enabled; }
     bool active_only_horizon_msg() { return active_only_horizon_msg_; }
 

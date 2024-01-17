@@ -51,9 +51,13 @@ void personality_watcher::stop() {
             cv_.notify_one();
             lock.unlock();   // avoid dead lock, the other thread might try locking this mutex
             personality_thread_.join();
-            lock.lock();
         }
     }
+}
+
+bool personality_watcher::is_watching() {
+    std::lock_guard<std::mutex> lock{mtx_};
+    return watching_.load();
 }
 
 #pragma endregion PUBLIC
@@ -114,7 +118,7 @@ void personality_watcher::personality_update() {
                     alert_manager_->add_active_auction(new_active_auction);
 
                     auto type = new_active_auction.p->info.ptype;
-                    if(active_only_horizon_msg_ && !alert_manager_->is_alert_enabled(type)) {
+                    if (active_only_horizon_msg_ && !alert_manager_->is_alert_enabled(type)) {
                         continue;
                     }
 

@@ -113,10 +113,14 @@ void personality_watcher::personality_update() {
                     active_auction new_active_auction{*au, server_time, &gamedata->get_personality(au->personality_id)};
                     alert_manager_->add_active_auction(new_active_auction);
 
+                    auto type = new_active_auction.p->info.ptype;
+                    if(active_only_horizon_msg_ && !alert_manager_->is_alert_enabled(type)) {
+                        continue;
+                    }
+
                     dpp::message msg;
                     msg.channel_id = alert_manager_->get_alert_channel();
                     auto e = util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true);
-                    auto type = new_active_auction.p->info.ptype;
                     if (alert_manager_->has_horizon_message(type)) {
                         e.add_field("", alert_manager_->get_horizon_message(type));
                     }

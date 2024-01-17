@@ -35,6 +35,8 @@ class personality_watcher {
     void run();
     void stop();
     bool is_watching() { return watching_.load(); }
+    void set_active_only_horizon_msg(bool enabled) { active_only_horizon_msg_ = enabled; }
+    bool active_only_horizon_msg() { return active_only_horizon_msg_; }
 
     bool is_using_local_time() { return use_local_time_; }
     void set_using_local_time(bool use_local_time) { use_local_time_ = use_local_time; }
@@ -68,6 +70,7 @@ class personality_watcher {
     std::mutex mtx_;
 
     bool use_local_time_;
+    bool active_only_horizon_msg_;
     std::chrono::milliseconds server_delta_;
     std::chrono::steady_clock::time_point at_sync_time_;
     std::chrono::system_clock::time_point server_time_;

@@ -65,12 +65,11 @@ class WebbotConfig:
 
 
 logger = setup_logger()
-webbotconfig = WebbotConfig()
+cfg: WebbotConfig = WebbotConfig()
 
 
 class Webbot:
     def __init__(self):
-        self.config: WebbotConfig = webbotconfig
         self.cookies: List[dict] = None
         self.current_world_url: str = None
         self.valid_session: bool = False
@@ -78,24 +77,24 @@ class Webbot:
 
         chrome_options = webdriver.ChromeOptions()
 
-        if self.config["Webdriver.headless"] == str(1):
+        if cfg["Webdriver.headless"] == str(1):
             chrome_options.add_argument("--headless")
             chrome_options.add_argument("--no-sandbox")
             chrome_options.add_argument("--disable-notifications")
             chrome_options.add_argument("--window-size=1920,1080")
 
-        proxy = self.config["Webdriver.proxy"]
+        proxy = cfg["Webdriver.proxy"]
         if proxy:
             chrome_options.add_argument(f"--proxy-server={proxy}")
 
-        spoofed_ua = self.config["Webdriver.spoofed_ua"]
+        spoofed_ua = cfg["Webdriver.spoofed_ua"]
         if spoofed_ua:
             chrome_options.add_argument(f"--user-agent={spoofed_ua}")
 
         datadir = pathlib.Path().absolute().joinpath(DRIVER_USERDATA_DIR)
         chrome_options.add_argument(f"--user-data-dir={datadir}")
 
-        profile = self.config["Webdriver.profile"]
+        profile = cfg["Webdriver.profile"]
         if profile:
             chrome_options.add_argument(f"--profile-directory={profile}")
         else:
@@ -113,7 +112,7 @@ class Webbot:
             raise
 
         self.client: httpx.Client = httpx.Client()
-        self.client.headers.update({"User-Agent": self.config["Webdriver.spoofed_ua"]})
+        self.client.headers.update({"User-Agent": cfg["Webdriver.spoofed_ua"]})
         self.executor: ThreadPoolExecutor = ThreadPoolExecutor()
 
     def check_for_login_prompt(self) -> List[WebElement]:
@@ -122,7 +121,7 @@ class Webbot:
         try:
             iframe = wait.until(
                 EC.presence_of_element_located(
-                    (By.CLASS_NAME, self.config["Login.popup_form_class"])
+                    (By.CLASS_NAME, cfg["Login.popup_form_class"])
                 )
             ).find_element(By.TAG_NAME, "iframe")
             iframes.append(iframe)
@@ -131,7 +130,7 @@ class Webbot:
             iframes.append(iframe)
             self.driver.switch_to.frame(iframe)
             form = wait.until(
-                EC.visibility_of_element_located((By.ID, self.config["Login.form_id"]))
+                EC.visibility_of_element_located((By.ID, cfg["Login.form_id"]))
             )
 
             logger.info("Located login prompt iframes")
@@ -147,24 +146,24 @@ class Webbot:
             self.driver.switch_to.frame(iframe)
 
         form = wait.until(
-            EC.visibility_of_element_located((By.ID, self.config["Login.form_id"]))
+            EC.visibility_of_element_located((By.ID, cfg["Login.form_id"]))
         )
 
         email_field = wait.until(
-            EC.element_to_be_clickable((By.NAME, self.config["Login.email_name"]))
+            EC.element_to_be_clickable((By.NAME, cfg["Login.email_name"]))
         )
 
         password_field = wait.until(
-            EC.element_to_be_clickable((By.NAME, self.config["Login.password_name"]))
+            EC.element_to_be_clickable((By.NAME, cfg["Login.password_name"]))
         )
 
         login_submit = wait.until(
-            EC.element_to_be_clickable((By.NAME, self.config["Login.submit_name"]))
+            EC.element_to_be_clickable((By.NAME, cfg["Login.submit_name"]))
         )
 
         ActionChains(self.driver).pause(1).send_keys_to_element(
-            email_field, self.config["Login.email"]
-        ).send_keys_to_element(password_field, self.config["Login.password"]).pause(
+            email_field, cfg["Login.email"]
+        ).send_keys_to_element(password_field, cfg["Login.password"]).pause(
             1
         ).move_to_element(
             login_submit
@@ -173,14 +172,12 @@ class Webbot:
 
     def is_logged(self, go_to_lobby: bool = False) -> bool:
         if go_to_lobby:
-            self.driver.get(self.config["Gameworld.url"])
+            self.driver.get(cfg["Gameworld.url"])
 
         wait = WebDriverWait(self.driver, DEFAULT_WEBDRIVER_WAIT)
         try:
             wait.until(
-                EC.presence_of_element_located(
-                    (By.ID, self.config["Login.logged_in_id"])
-                )
+                EC.presence_of_element_located((By.ID, cfg["Login.logged_in_id"]))
             )
             return True
         except:
@@ -204,7 +201,7 @@ class Webbot:
         try:
             no_cookie_btn = wait.until(
                 EC.visibility_of_element_located(
-                    (By.ID, self.config["Login.no_cookies_btn_id"])
+                    (By.ID, cfg["Login.no_cookies_btn_id"])
                 )
             )
             logger.info("Clicking no cookies button")
@@ -214,7 +211,7 @@ class Webbot:
 
         try:
             wait.until(
-                EC.visibility_of_element_located((By.ID, self.config["Login.btn_id"]))
+                EC.visibility_of_element_located((By.ID, cfg["Login.btn_id"]))
             ).click()
 
             iframes = self.check_for_login_prompt()
@@ -231,9 +228,9 @@ class Webbot:
     def join_gameworld(self, world_name: str = None) -> None:
         start_time = time.time()
         if not world_name:
-            world_name = self.config["Gameworld.join"]
+            world_name = cfg["Gameworld.join"]
 
-        self.driver.get(self.config["Gameworld.url"])
+        self.driver.get(cfg["Gameworld.url"])
         worlds = self.get_game_worlds()
         for world in worlds:
             if world_name in world:
@@ -267,7 +264,7 @@ class Webbot:
         self.current_world_url = self.driver.current_url
         logger.info(f"Set current world url to {self.current_world_url}")
 
-        self.driver.get(self.config["Gameworld.url"])
+        self.driver.get(cfg["Gameworld.url"])
 
         self.valid_session = True
         self.alive_count = 0
@@ -287,17 +284,17 @@ class Webbot:
         try:
             gm_cards = wait.until(
                 EC.visibility_of_all_elements_located(
-                    (By.CLASS_NAME, self.config["Gameworld.gm_card_class"])
+                    (By.CLASS_NAME, cfg["Gameworld.gm_card_class"])
                 )
             )
 
             for e in gm_cards:
                 world_name = e.find_element(
-                    By.CLASS_NAME, self.config["Gameworld.gm_title_class"]
+                    By.CLASS_NAME, cfg["Gameworld.gm_title_class"]
                 )
                 logger.info(f"world name: {world_name.text}")
                 play_btn = e.find_element(
-                    By.CLASS_NAME, self.config["Gameworld.gm_play_class"]
+                    By.CLASS_NAME, cfg["Gameworld.gm_play_class"]
                 ).find_element(By.CLASS_NAME, "button")
 
                 gm_worlds[world_name.text.lower()] = play_btn
@@ -315,7 +312,7 @@ class Webbot:
             )
             self.driver.get(current_url)
             time.sleep(GAMEWORLD_LOAD_WAIT * 6)
-            self.driver.get(self.config["Gameworld.url"])
+            self.driver.get(cfg["Gameworld.url"])
             self.executor.submit(partial(self.keep_cookies_alive, current_url))
         else:
             logger.warning(
@@ -362,16 +359,14 @@ class Webbot:
             return None
 
     def get_corp_info(self) -> httpx.Response:
-        corp_id = self.config["Gameworld.corp"]
+        corp_id = cfg["Gameworld.corp"]
         payload = dict()
         payload["client"] = "1"
         payload["checksum"] = "-1"
         payload["parameters"] = [corp_id]
         payload["hash"] = hashlib.md5(f'["{corp_id}"]'.encode()).hexdigest()
 
-        request_url = (
-            self.current_world_url.split("web")[0] + self.config["Endpoint.corp"]
-        )
+        request_url = self.current_world_url.split("web")[0] + cfg["Endpoint.corp"]
         return self.make_request(request_url, payload)
 
     def get_servertime(self) -> httpx.Response:
@@ -382,7 +377,17 @@ class Webbot:
         }
         payload["hash"] = hashlib.md5("[]".encode()).hexdigest()
         request_url = (
-            self.current_world_url.split("web")[0] + self.config["Endpoint.server_time"]
+            self.current_world_url.split("web")[0] + cfg["Endpoint.server_time"]
         )
 
+        return self.make_request(request_url, payload)
+
+    def get_licenses(self) -> httpx.Response:
+        payload = dict()
+        payload["client"] = "1"
+        payload["checksum"] = "-1"
+        payload["parameters"] = []
+        payload["hash"] = hashlib.md5("[]".encode()).hexdigest()
+
+        request_url = self.current_world_url.split("web")[0] + cfg["Endpoint.license"]
         return self.make_request(request_url, payload)

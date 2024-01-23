@@ -10,7 +10,8 @@ namespace railcord {
     enum api {
         sync_time_id = 0,
         personality_id = 1,
-        worker_art_id = 2
+        worker_art_id = 2,
+        license_id = 3
     };
 }
 

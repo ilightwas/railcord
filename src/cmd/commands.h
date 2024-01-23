@@ -2,12 +2,14 @@
 #define COMMANDS_H
 
 #include <chrono>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include <dpp/dpp.h>
 
+#include "license.h"
 #include "personality.h"
 
 namespace railcord {
@@ -124,6 +126,30 @@ class Remove_Custom_Message : public Base_Cmd {
     void handle_slash_interaction(const dpp::slashcommand_t& event) override;
     void handle_select_click(const dpp::select_click_t&) override;
     std::optional<std::string> handler_prefix() override;
+};
+
+class License_Bid : public Base_Cmd {
+  public:
+    License_Bid(Lucy* lucy);
+
+    dpp::slashcommand build() override;
+    void handle_slash_interaction(const dpp::slashcommand_t& event) override;
+    std::optional<std::string> handler_prefix() override;
+
+    std::vector<dpp::snowflake> users_to_remind(const std::string& id);
+    void remove_reminder(const std::string& id);
+
+  private:
+    void add_reminder(const License& license, dpp::snowflake user, dpp::snowflake channel);
+    bool has_license_reminder(const std::string& id, dpp::snowflake user);
+    bool has_active_reminder(const std::string& id);
+
+    std::mutex mtx_;
+    std::chrono::system_clock::time_point last_update_;
+    License_Manager license_manager_;
+
+    std::unordered_map<std::string, std::vector<dpp::snowflake>> license_reminders_;
+    std::unordered_map<std::string, dpp::timer> active_timers_;
 };
 
 template <typename Arg1, typename Arg2, typename... Params>

@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <algorithm>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -13,11 +14,16 @@
 #include <dpp/nlohmann/json.hpp>
 
 #include "alert_info.h"
+#include "license.h"
 #include "logger.h"
 #include "personality.h"
 
+
 namespace railcord {
 class Gamedata;
+struct good;
+struct License;
+struct Embed_Data;
 class Sent_Messages;
 }   // namespace railcord
 
@@ -92,6 +98,10 @@ std::string fmt_to_hr_min_sec(Duration d) {
     return tmp;
 }
 
+inline std::string user_mention(dpp::snowflake user) {
+    return std::string{}.append("<@").append(std::to_string(user)).append(">");
+}
+
 inline dpp::timer one_shot_timer(dpp::cluster* bot, std::function<void()> f, uint64_t seconds) {
     return bot->start_timer(
         [bot, f](dpp::timer t) {
@@ -103,12 +113,17 @@ inline dpp::timer one_shot_timer(dpp::cluster* bot, std::function<void()> f, uin
 
 inline int as_int(const nlohmann::json& j) { return std::stoi(j.get<std::string>()); }
 inline bool starts_with(const std::string& s, const std::string& prefix) { return (s.rfind(prefix, 0) == 0); }
+inline std::string to_lowercase(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    return s;
+}
 
 std::string get_token(const std::string& token_file);
 std::string md5(const std::string& str);
 
 dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs);
 dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
+dpp::message build_license_msg(License::Embed_Data* eb);
 
 std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https = false);
 uint32_t rnd_color();

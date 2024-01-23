@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 
+#include "gamedata.h"
 #include "sent_messages.h"
 #include "util.h"
 
@@ -96,6 +97,34 @@ dpp::embed build_embed(std::chrono::system_clock::time_point ends_at, const pers
     e.set_thumbnail(art_url);
 
     return e;
+}
+
+dpp::message build_license_msg(License::Embed_Data* eb) {
+    dpp::embed e;
+    // e.set_image(good->icon);
+    e.set_thumbnail(eb->good->icon);
+    e.add_field("License", fmt::format("The auction for {} will end soon {}", eb->good->name,
+                                       timepoint_to_discord_timestamp(eb->end_tp)));
+    e.add_field("Minimum price", std::to_string(eb->license->min_price));
+    e.add_field("Amount", std::to_string(eb->license->count).append("x"));
+
+    dpp::embed_author author;
+    author.icon_url = eb->good->icon;
+    author.name = eb->good->name;
+    e.set_author(author);
+
+    dpp::message m;
+    m.allowed_mentions.parse_users = true;
+    std::string mentions;
+    mentions.reserve(eb->users.size() * 10);
+    for (const auto& u : eb->users) {
+        mentions.append(user_mention(u));
+    }
+
+    m.set_content(mentions);
+    m.add_embed(e);
+
+    return m;
 }
 
 std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https) {

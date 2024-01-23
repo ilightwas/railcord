@@ -28,6 +28,7 @@ void Lucy::init(bool reg_cmds) {
     bot.on_log(dpp::utility::cout_logger());
 #endif
     load_settings();
+    gamedata_.init();
 
     bot_on_ready(reg_cmds);
     load_commands();
@@ -35,8 +36,6 @@ void Lucy::init(bool reg_cmds) {
     bot_on_form_submit();
     bot_on_button_click();
     bot_on_select_click();
-
-    gamedata_.init();
 
     running_.store(true);
     bot.start();
@@ -74,6 +73,9 @@ void Lucy::load_settings() {
 
     url = util::fmt_http_request(server, port, settings->Get("Lucy", "personality_endpoint", ""), https);
     api_endpoints.insert(std::make_pair(api::personality_id, url));
+
+    url = util::fmt_http_request(server, port, settings->Get("Lucy", "license_endpoint", ""), https);
+    api_endpoints.insert(std::make_pair(api::license_id, url));
 
     api_endpoints.insert(std::make_pair(api::worker_art_id, settings->Get("Lucy", "worker_art_endpoint", "")));
 
@@ -135,6 +137,7 @@ void Lucy::load_commands() {
     cmd_handler.add_command(new cmd::Alert_on(this));
     cmd_handler.add_command(new cmd::Save_Settings(this));
     cmd_handler.add_command(new cmd::Remove_Custom_Message(this));
+    cmd_handler.add_command(new cmd::License_Bid(this));
 }
 
 }   // namespace railcord

@@ -13,7 +13,7 @@ constexpr const char* prefix_license_bid = "license";
 constexpr const char* cmd_option_name = "good_name";
 
 License_Bid::License_Bid(Lucy* lucy)
-    : Base_Cmd("license_bid", "Alert you when a license you want has a bidding", seconds{3}, lucy) {
+    : Base_Cmd("license_bid", "Alert you when a license you want has an auction", seconds{3}, lucy) {
 
     license_manager_.update_state();
     last_update_ = system_clock::now();
@@ -69,8 +69,9 @@ License_Bid::License_Bid(Lucy* lucy)
             }
 
             bot->interaction_response_create(event.command.id, event.command.token, res);
-            logger->debug("Autocomplete {}  with value '{}' in field {} for user {}", opt.name, uservalue, event.name,
-                          event.command.usr.global_name);
+            // logger->debug("Autocomplete {}  with value '{}' in field {} for user {}", opt.name, uservalue,
+            // event.name,
+            //               event.command.usr.global_name);
             break;
         }
     });
@@ -82,13 +83,16 @@ dpp::slashcommand License_Bid::build() {
 }
 
 void License_Bid::handle_slash_interaction(const dpp::slashcommand_t& event) {
+    event.thinking();
     auto userchoice = std::get<std::string>(event.get_parameter(cmd_option_name));
     int good_type;
 
     try {
         good_type = util::as_int(userchoice);   // todo use a map later
     } catch (const std::exception&) {
-        event.reply(dpp::message{fmt::format("\"{}\" is not a valid good", userchoice)}.set_flags(dpp::m_ephemeral));
+        event.edit_original_response(
+            dpp::message{fmt::format("\"{}\" is not a valid good", userchoice)}.set_flags(dpp::m_ephemeral));
+        logger->warn("invalid good choice, User {} entered {}", event.command.usr.global_name, userchoice);
         return;
     }
 
@@ -97,30 +101,36 @@ void License_Bid::handle_slash_interaction(const dpp::slashcommand_t& event) {
         last_update_ = now;
     }
 
-    const std::string& name = lucy_->gamedata()->goods()[static_cast<size_t>(good_type)].name;
+    const std::string& good_name = lucy_->gamedata()->goods()[static_cast<size_t>(good_type)].name;
     auto license = license_manager_.get_next_license(good_type);
     if (license) {
 
         if (license_manager_.is_currently_active(*license)) {
-            event.reply(dpp::message{fmt::format("A license auction for {} is active right now!", name)}.set_flags(
-                dpp::m_ephemeral));
+            event.edit_original_response(
+                dpp::message{fmt::format("A license auction for {} is active right now!", good_name)});
+            // .set_flags(dpp::m_ephemeral));
             return;
         }
 
         if (has_license_reminder(license->id, event.command.usr.id)) {
-            event.reply(
-                dpp::message{fmt::format("A reminder is already ongoing for the next license of {}", name)}.set_flags(
-                    dpp::m_ephemeral));
+            event.edit_original_response(
+                dpp::message{fmt::format("A reminder is already ongoing for the next license of {}", good_name)});
+            // .set_flags(dpp::m_ephemeral));
             return;
         }
 
         add_reminder(*license, event.command.usr.id, event.command.channel_id);
+        logger->debug("Added reminder for usr {}, {}, {}, {}", event.command.usr.global_name, good_name,
+                      util::fmt_to_hr_min_sec(license_manager_.get_start_tp(*license) - system_clock::now()),
+                      util::fmt_to_hr_min_sec(license_manager_.get_end_tp(*license) - system_clock::now()));
 
-        event.reply(dpp::message{fmt::format("An auction for {} will start in {}, I will remind you", name,
-                                             util::fmt_to_hr_min_sec(license_manager_.time_left_to_start(*license)))}
-                        .set_flags(dpp::m_ephemeral));
+        event.edit_original_response(
+            dpp::message{fmt::format("An auction for {} will start {}, I will remind you", good_name,
+                                     util::timepoint_to_discord_timestamp(license_manager_.get_start_tp(*license)))});
+        // .set_flags(dpp::m_ephemeral));
     } else {
-        event.reply(dpp::message{fmt::format("No auction found for {}", name)}.set_flags(dpp::m_ephemeral));
+        event.edit_original_response(dpp::message{fmt::format("No auction found for {}", good_name)});
+        // .set_flags(dpp::m_ephemeral));
     }
 }
 
@@ -157,6 +167,9 @@ void License_Bid::add_reminder(const License& license, dpp::snowflake user, dpp:
     if (reminder_delay > minutes{3}) {
         reminder_delay -= minutes{3};
     }
+
+    logger->debug("Creating alert timer for id: {}, {}, by user {}", license.id, license.good_type,
+                  static_cast<int64_t>(user));
 
     dpp::timer t = util::one_shot_timer(
         &lucy_->bot,

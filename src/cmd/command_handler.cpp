@@ -19,6 +19,10 @@ Command_handler::~Command_handler() {
 }
 
 static bool can_use_command(const dpp::slashcommand_t& event, Lucy* lucy) {
+    if (event.command.get_command_name() == "license_bid") {   // temporary
+        return true;
+    }
+
     const auto& whitelist = lucy->user_whitelist();
     const auto& member = event.command.member;
 

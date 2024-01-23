@@ -26,8 +26,8 @@ inline constexpr int s_icon_effects_offset = 50;
 inline constexpr int s_money_icon_idx = 50;
 inline constexpr int s_prestige_icon_idx = 56;
 
-struct good {
-    good(int id, std::string n, std::string ic, std::string em, std::uint64_t em_id)
+struct Good {
+    Good(int id, std::string n, std::string ic, std::string em, std::uint64_t em_id)
         : id(id), name(std::move(n)), icon(std::move(ic)), emoji(std::move(em)), emoji_id(em_id) {}
     int id;
     std::string name;
@@ -44,7 +44,7 @@ class Gamedata {
     const personality& get_personality(int id) const { return personalities_.at(id); }
     const personality& get_rnd_personality(personality::type t) const;
 
-    const std::deque<good>& goods() const { return goods_; }
+    const std::deque<Good>& goods() const { return goods_; }
 
     dpp::emoji get_emoji(personality::type t) const;
     std::string get_effect_icon(personality::type t) const;
@@ -52,7 +52,7 @@ class Gamedata {
   private:
     std::pair<const std::string*, const std::string*> get_icons(const personality::information& info) const;
     std::unordered_map<int, personality> personalities_;
-    std::deque<good> goods_;
+    std::deque<Good> goods_;
 };
 
 std::unordered_set<std::string> load_auction_ids();

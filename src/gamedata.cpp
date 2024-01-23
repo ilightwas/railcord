@@ -112,7 +112,7 @@ static names_desc load_personality_names_desc(const std::string& gamedata_file, 
     return {all_names, all_descriptions};
 }
 
-static std::deque<good> load_goods(const std::string& goods_file) {
+static std::deque<Good> load_goods(const std::string& goods_file) {
     logger->debug("Loading goods information...");
 
     std::ifstream stream{goods_file};
@@ -121,7 +121,7 @@ static std::deque<good> load_goods(const std::string& goods_file) {
         throw std::runtime_error{"Could not open goods file"};
     }
 
-    std::deque<good> goods{};
+    std::deque<Good> goods{};
 
     try {
         nlohmann::json j_goods = json::parse(stream);

@@ -21,7 +21,7 @@
 
 namespace railcord {
 class Gamedata;
-struct good;
+struct Good;
 struct License;
 struct Embed_Data;
 class Sent_Messages;

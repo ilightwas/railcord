@@ -12,7 +12,7 @@
 
 namespace railcord {
 
-struct good;
+struct Good;
 
 struct License {
     std::string id;
@@ -24,7 +24,7 @@ struct License {
 
     struct Embed_Data {
         const std::vector<dpp::snowflake> users;
-        const good* good;
+        const Good* good;
         const License* license;
         const std::chrono::system_clock::time_point end_tp;
     };

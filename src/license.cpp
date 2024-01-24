@@ -31,7 +31,7 @@ void from_json(const nlohmann::json& j, License& l) {
 void to_json(nlohmann::json&, const License&) {}
 
 static std::deque<License> request_licenses() {
-    cpr::Response r = cpr::Get(cpr::Url{api_endpoints.at(api::license_id)}, cpr::Timeout{seconds{10}});
+    cpr::Response r = cpr::Get(cpr::Url{api_endpoints.at(api::license_id)}, cpr::Timeout{seconds{s_request_license_timeout}});
     if (r.status_code != 200) {
         if (r.status_code == 0) {
             logger->warn("License request timed out");

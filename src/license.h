@@ -14,6 +14,8 @@ namespace railcord {
 
 struct Good;
 
+static constexpr int s_request_license_timeout = 90;   // seconds
+
 struct License {
     std::string id;
     std::chrono::seconds start;

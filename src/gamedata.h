@@ -3,11 +3,13 @@
 
 #include <array>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 #include "personality.h"
+#include "license.h"
 
 namespace railcord {
 
@@ -48,6 +50,8 @@ class Gamedata {
 
     dpp::emoji get_emoji(personality::type t) const;
     std::string get_effect_icon(personality::type t) const;
+    
+    const Good* get_license_good(int good_type);
 
   private:
     std::pair<const std::string*, const std::string*> get_icons(const personality::information& info) const;

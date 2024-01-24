@@ -171,6 +171,16 @@ std::string Gamedata::get_effect_icon(personality::type t) const {
     return good.icon;
 }
 
+const Good* Gamedata::get_license_good(int good_type) {
+    size_t idx{static_cast<size_t>(good_type)};
+
+    if (goods_.size() > idx) {
+        return &goods_[idx];
+    } else {
+        return &goods_.front();
+    }
+}
+
 std::pair<const std::string*, const std::string*> Gamedata::get_icons(const personality::information& info) const {
     typedef personality::type t;
     switch (info.ptype) {

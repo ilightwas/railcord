@@ -101,37 +101,38 @@ void License_Bid::handle_slash_interaction(const dpp::slashcommand_t& event) {
         last_update_ = now;
     }
 
-    const std::string& good_name = lucy_->gamedata()->goods()[static_cast<size_t>(good_type)].name;
+    const Good* good = lucy_->gamedata()->get_license_good(good_type);
     auto license = license_manager_.get_next_license(good_type);
-    if (license) {
 
-        if (license_manager_.is_currently_active(*license)) {
-            event.edit_original_response(
-                dpp::message{fmt::format("A license auction for {} is active right now!", good_name)});
-            // .set_flags(dpp::m_ephemeral));
-            return;
-        }
-
-        if (has_license_reminder(license->id, event.command.usr.id)) {
-            event.edit_original_response(
-                dpp::message{fmt::format("A reminder is already ongoing for the next license of {}", good_name)});
-            // .set_flags(dpp::m_ephemeral));
-            return;
-        }
-
-        add_reminder(*license, event);
-        logger->debug("Added reminder for usr {}, {}, {}, {}", event.command.usr.global_name, good_name,
-                      util::fmt_to_hr_min_sec(license_manager_.get_start_tp(*license) - system_clock::now()),
-                      util::fmt_to_hr_min_sec(license_manager_.get_end_tp(*license) - system_clock::now()));
-
-        event.edit_original_response(
-            dpp::message{fmt::format("An auction for {} will start {}, I will remind you", good_name,
-                                     util::timepoint_to_discord_timestamp(license_manager_.get_start_tp(*license)))});
+    if (!license) {
+        event.edit_original_response(dpp::message{fmt::format("No auction found for {}", good->name)});
         // .set_flags(dpp::m_ephemeral));
-    } else {
-        event.edit_original_response(dpp::message{fmt::format("No auction found for {}", good_name)});
-        // .set_flags(dpp::m_ephemeral));
+        return;
     }
+
+    if (license_manager_.is_currently_active(*license)) {
+        event.edit_original_response(
+            dpp::message{fmt::format("A license auction for {} is active right now!", good->name)});
+        // .set_flags(dpp::m_ephemeral));
+        return;
+    }
+
+    if (has_license_reminder(license->id, event.command.usr.id)) {
+        event.edit_original_response(
+            dpp::message{fmt::format("A reminder is already ongoing for the next license of {}", good->name)});
+        // .set_flags(dpp::m_ephemeral));
+        return;
+    }
+
+    add_reminder(*license, event);
+    logger->debug("Added reminder for usr {}, {}, {}, {}", event.command.usr.global_name, good->name,
+                  util::fmt_to_hr_min_sec(license_manager_.get_start_tp(*license) - system_clock::now()),
+                  util::fmt_to_hr_min_sec(license_manager_.get_end_tp(*license) - system_clock::now()));
+
+    event.edit_original_response(
+        dpp::message{fmt::format("An auction for {} will start {}, I will remind you", good->name,
+                                 util::timepoint_to_discord_timestamp(license_manager_.get_start_tp(*license)))});
+    // .set_flags(dpp::m_ephemeral));
 }
 
 std::optional<std::string> License_Bid::handler_prefix() { return {prefix_license_bid}; }
@@ -170,9 +171,8 @@ void License_Bid::add_reminder(const License& license, const dpp::slashcommand_t
     dpp::timer t = util::one_shot_timer(
         &lucy_->bot,
         [this, license, channel = event.command.channel_id]() {
-            License::Embed_Data eb{
-                users_to_remind(license.id), &lucy_->gamedata()->goods()[static_cast<size_t>(license.good_type)],
-                &license, license_manager_.get_end_tp(license)};
+            License::Embed_Data eb{users_to_remind(license.id), lucy_->gamedata()->get_license_good(license.good_type),
+                                   &license, license_manager_.get_end_tp(license)};
 
             dpp::message m = util::build_license_msg(&eb);
             m.set_channel_id(channel);

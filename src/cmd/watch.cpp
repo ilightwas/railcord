@@ -18,9 +18,9 @@ dpp::slashcommand Watch::build() {
 
 void Watch::handle_slash_interaction(const dpp::slashcommand_t& event) {
     if (lucy_->watcher()->is_watching()) {
-        event.reply("Already watching!");
+        event.reply(dpp::message{"Already watching!"}.set_flags(dpp::m_ephemeral));
     } else {
-        event.reply("Starting workers watch..");
+        event.reply(dpp::message{"Starting workers watch.."}.set_flags(dpp::m_ephemeral));
         personality_watcher* watcher = lucy_->watcher();
         watcher->set_active_only_horizon_msg(std::get<bool>(event.get_parameter(s_horizon_cmd_option)));
         watcher->run();

@@ -10,7 +10,7 @@ dpp::slashcommand Stop_watch::build() { return dpp::slashcommand(name_, descript
 
 void Stop_watch::handle_slash_interaction(const dpp::slashcommand_t& event) {
     if (lucy_->watcher()->is_watching()) {
-        event.thinking();
+        event.thinking(true);
         lucy_->watcher()->stop();
         event.edit_original_response(dpp::message{"Workers watch stopped!"});
     } else {

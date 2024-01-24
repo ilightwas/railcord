@@ -12,7 +12,8 @@ dpp::slashcommand Set_channel::build() { return dpp::slashcommand(name_, descrip
 
 void Set_channel::handle_slash_interaction(const dpp::slashcommand_t& event) {
     lucy_->alert_manager()->set_alert_channel(event.command.channel.id);
-    event.reply(fmt::format("Watch channel set to: {}", event.command.channel.name));
+    event.reply(
+        dpp::message{fmt::format("Watch channel set to: {}", event.command.channel.name)}.set_flags(dpp::m_ephemeral));
 }
 
 }   // namespace railcord::cmd

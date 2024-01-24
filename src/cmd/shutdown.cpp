@@ -20,7 +20,7 @@ void Shutdown::handle_slash_interaction(const dpp::slashcommand_t& event) {
         lucy_->shutdown();
     } else {
         logger->warn("Shutdown command received again..");
-        event.reply(dpp::message{"Shutdown already going!"}.set_flags(dpp::m_ephemeral));
+        event.reply(dpp::message{"Shutdown already ongoing!"}.set_flags(dpp::m_ephemeral));
     }
 }
 

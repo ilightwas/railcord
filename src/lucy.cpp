@@ -27,15 +27,19 @@ void Lucy::init(bool reg_cmds) {
 #else
     bot.on_log(dpp::utility::cout_logger());
 #endif
+
     load_settings();
     gamedata_.init();
 
-    bot_on_ready(reg_cmds);
     load_commands();
-    bot_on_slash_cmd();
-    bot_on_form_submit();
-    bot_on_button_click();
-    bot_on_select_click();
+    if (reg_cmds) {
+        cmd_handler.register_commands(this);
+    }
+
+    cmd_handler.on_slash_cmd(this);
+    cmd_handler.on_form_submit(this);
+    cmd_handler.on_button_click(this);
+    cmd_handler.on_select_click(this);
 
     running_.store(true);
     bot.start();
@@ -83,7 +87,8 @@ void Lucy::load_settings() {
     alert_manager_.set_alert_role(settings->GetUnsigned64("Lucy", "alert_role", 0));
 
     bot_admin_role_ = settings->GetUnsigned64("Lucy", "bot_admin_role", 0);
-    if(bot_admin_role_.empty()) {
+
+    if (bot_admin_role_.empty()) {
         logger->warn("Bot admin role default initialized to 0");
     }
 
@@ -116,17 +121,6 @@ void Lucy::shutdown() {
         });
     });
 }
-
-void Lucy::bot_on_ready(bool reg_cmds) {
-    if (reg_cmds) {
-        cmd_handler.register_commands(this);
-    }
-}
-
-void Lucy::bot_on_slash_cmd() { cmd_handler.on_slash_cmd(this); }
-void Lucy::bot_on_form_submit() { cmd_handler.on_form_submit(this); }
-void Lucy::bot_on_button_click() { cmd_handler.on_button_click(this); }
-void Lucy::bot_on_select_click() { cmd_handler.on_select_click(this); }
 
 void Lucy::load_commands() {
     cmd_handler.add_command(new cmd::Ping(this));

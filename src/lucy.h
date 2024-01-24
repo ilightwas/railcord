@@ -43,11 +43,6 @@ class Lucy {
     dpp::cluster bot;
 
   private:
-    void bot_on_ready(bool reg_cmds);
-    void bot_on_slash_cmd();
-    void bot_on_form_submit();
-    void bot_on_button_click();
-    void bot_on_select_click();
     void load_commands();
 
     std::atomic_bool running_;

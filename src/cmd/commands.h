@@ -140,7 +140,7 @@ class License_Bid : public Base_Cmd {
     void remove_reminder(const std::string& id);
 
   private:
-    void add_reminder(const License& license, dpp::snowflake user, dpp::snowflake channel);
+    void add_reminder(const License& license, const dpp::slashcommand_t& event);
     bool has_license_reminder(const std::string& id, dpp::snowflake user);
     bool has_active_reminder(const std::string& id);
 

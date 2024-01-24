@@ -119,7 +119,7 @@ void License_Bid::handle_slash_interaction(const dpp::slashcommand_t& event) {
             return;
         }
 
-        add_reminder(*license, event.command.usr.id, event.command.channel_id);
+        add_reminder(*license, event);
         logger->debug("Added reminder for usr {}, {}, {}, {}", event.command.usr.global_name, good_name,
                       util::fmt_to_hr_min_sec(license_manager_.get_start_tp(*license) - system_clock::now()),
                       util::fmt_to_hr_min_sec(license_manager_.get_end_tp(*license) - system_clock::now()));
@@ -146,34 +146,30 @@ std::vector<dpp::snowflake> License_Bid::users_to_remind(const std::string& id) 
     }
 }
 
-void License_Bid::add_reminder(const License& license, dpp::snowflake user, dpp::snowflake channel) {
+void License_Bid::add_reminder(const License& license, const dpp::slashcommand_t& event) {
     std::lock_guard<std::mutex> lock{mtx_};
+    const auto& usr = event.command.usr;
 
-    auto reminder = license_reminders_.find(license.id);
-    if (reminder != license_reminders_.end()) {
-        reminder->second.push_back(user);
+    if (auto reminder = license_reminders_.find(license.id); reminder != license_reminders_.end()) {
+        reminder->second.push_back(usr.id);
     } else {
         auto inserted = license_reminders_.insert({license.id, {}});
-        inserted.first->second.push_back(user);
+        inserted.first->second.push_back(usr.id);
     }
 
     if (has_active_reminder(license.id)) {
         return;
     }
 
-    auto reminder_delay =
-        duration_cast<seconds>(std::chrono::abs(license_manager_.get_end_tp(license) - system_clock::now()));
+    const auto reminder_delay =
+        duration_cast<seconds>(std::chrono::abs(license_manager_.get_start_tp(license) - system_clock::now()));
 
-    if (reminder_delay > minutes{3}) {
-        reminder_delay -= minutes{3};
-    }
-
-    logger->debug("Creating alert timer for id: {}, {}, by user {}", license.id, license.good_type,
-                  static_cast<int64_t>(user));
+    logger->debug("Creating alert timer for id: {}, {}, by user {} in {}", license.id, license.good_type,
+                  usr.global_name, util::fmt_to_hr_min_sec(reminder_delay));
 
     dpp::timer t = util::one_shot_timer(
         &lucy_->bot,
-        [this, license, channel]() {
+        [this, license, channel = event.command.channel_id]() {
             License::Embed_Data eb{
                 users_to_remind(license.id), &lucy_->gamedata()->goods()[static_cast<size_t>(license.good_type)],
                 &license, license_manager_.get_end_tp(license)};

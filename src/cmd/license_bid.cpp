@@ -13,7 +13,7 @@ constexpr const char* prefix_license_bid = "license";
 constexpr const char* cmd_option_name = "good_name";
 
 License_Bid::License_Bid(Lucy* lucy)
-    : Base_Cmd("license_bid", "Alert you when a license you want has an auction", seconds{3}, lucy) {
+    : Base_Cmd("license", "Alert you when a license you want has an auction", seconds{3}, lucy) {
 
     license_manager_.update_state();
     last_update_ = system_clock::now();

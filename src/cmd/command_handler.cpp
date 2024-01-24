@@ -19,7 +19,7 @@ Command_handler::~Command_handler() {
 }
 
 static bool can_use_command(const dpp::slashcommand_t& event, Lucy* lucy) {
-    if (event.command.get_command_name() == "license_bid") {   // temporary
+    if (event.command.get_command_name() == "license") {   // temporary
         return true;
     }
 

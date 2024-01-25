@@ -1,7 +1,13 @@
 #define OPENSSL_SUPPRESS_DEPRECATED
-#include <openssl/md5.h>
+
+#ifdef WIN32
+// disable msvc complaining about 'localtime' deprecated
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include <sstream>
+
+#include <openssl/md5.h>
 
 #include "gamedata.h"
 #include "sent_messages.h"

@@ -33,6 +33,21 @@ namespace railcord::util {
 inline constexpr auto s_inv_space = "‎";
 inline constexpr uint64_t s_delete_message_delay = 180;
 
+std::tm get_localtime(std::time_t* tt);
+std::chrono::system_clock::duration left_to_next_hour(std::chrono::system_clock::time_point tp);
+
+std::string get_token(const std::string& token_file);
+std::string md5(const std::string& str);
+
+dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs);
+dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
+dpp::message build_license_msg(License::Embed_Data* eb);
+
+std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https = false);
+uint32_t rnd_color();
+std::string rnd_emoji(uint32_t idx = 0);
+uint32_t rnd_gen(std::function<uint32_t(std::mt19937& gen)> f);
+
 template <typename Tp>
 std::string timepoint_to_discord_timestamp(Tp tp, const char* fmt = "R") {
     using namespace std::chrono;
@@ -97,9 +112,6 @@ std::string fmt_to_hr_min_sec(Duration d) {
     return tmp;
 }
 
-std::tm get_localtime(std::time_t* tt);
-std::chrono::system_clock::duration left_to_next_hour(std::chrono::system_clock::time_point tp);
-
 inline std::string user_mention(dpp::snowflake user) {
     return std::string{}.append("<@").append(std::to_string(user)).append(">");
 }
@@ -119,18 +131,6 @@ inline std::string to_lowercase(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
     return s;
 }
-
-std::string get_token(const std::string& token_file);
-std::string md5(const std::string& str);
-
-dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs);
-dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
-dpp::message build_license_msg(License::Embed_Data* eb);
-
-std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https = false);
-uint32_t rnd_color();
-std::string rnd_emoji(uint32_t idx = 0);
-uint32_t rnd_gen(std::function<uint32_t(std::mt19937& gen)> f);
 
 }   // namespace railcord::util
 

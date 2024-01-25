@@ -2,12 +2,14 @@
 #define UTIL_H
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <random>
 #include <string>
+#include <time.h>
 #include <vector>
 
 #include <dpp/dpp.h>
@@ -17,7 +19,6 @@
 #include "license.h"
 #include "logger.h"
 #include "personality.h"
-
 
 namespace railcord {
 class Gamedata;
@@ -48,9 +49,7 @@ std::string timepoint_to_discord_timestamp(Tp tp, const char* fmt = "R") {
 template <typename Tp>
 std::string timepoint_to_date(Tp tp) {
     std::time_t tt = std::chrono::system_clock::to_time_t(tp);
-    std::tm tm;
-
-    tm = *std::localtime(&tt);
+    std::tm tm{get_localtime(&tt)};
 
     char buff[1024];
 
@@ -97,6 +96,9 @@ std::string fmt_to_hr_min_sec(Duration d) {
     }
     return tmp;
 }
+
+std::tm get_localtime(std::time_t* tt);
+std::chrono::system_clock::duration left_to_next_hour(std::chrono::system_clock::time_point tp);
 
 inline std::string user_mention(dpp::snowflake user) {
     return std::string{}.append("<@").append(std::to_string(user)).append(">");

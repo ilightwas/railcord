@@ -75,7 +75,7 @@ class personality_watcher {
     std::chrono::steady_clock::time_point at_sync_time_;
     std::chrono::system_clock::time_point server_time_;
 
-    std::deque<std::chrono::seconds> wait_times_;
+    std::deque<std::chrono::system_clock::duration> wait_times_;
     Sent_Messages sent_msgs_;
 };
 }   // namespace railcord

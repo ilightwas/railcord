@@ -1,9 +1,7 @@
 #define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/md5.h>
 
-#include <mutex>
 #include <sstream>
-#include <string>
 
 #include "gamedata.h"
 #include "sent_messages.h"
@@ -12,6 +10,20 @@
 namespace railcord::util {
 
 using json = nlohmann::json;
+using namespace std::chrono;
+
+static std::mutex localtime_mtx;
+
+std::tm get_localtime(std::time_t* tt) {
+    std::lock_guard<std::mutex> lock{localtime_mtx};
+    return *std::localtime(tt);
+}
+
+system_clock::duration left_to_next_hour(std::chrono::system_clock::time_point tp) {
+    std::time_t tt = system_clock::to_time_t(tp);
+    std::tm tm{get_localtime(&tt)};
+    return minutes{(60 - tm.tm_min)} - seconds{tm.tm_sec};
+}
 
 std::string get_token(const std::string& token_file) {
 

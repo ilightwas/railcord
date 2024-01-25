@@ -1,7 +1,9 @@
 
 #include <algorithm>
+#include <functional>
 #include <future>
 #include <memory>
+#include <time.h>
 #include <vector>
 
 #include <cpr/cpr.h>
@@ -135,7 +137,9 @@ void personality_watcher::personality_update() {
                 }
             } else {
                 logger->debug("No new auctions in the last request");
-                wait_times_.push_back(auction::s_pause);
+
+                // wait until next hour fifth minute
+                wait_times_.push_back(util::left_to_next_hour(system_clock::now()) + minutes{5});
             }
 
         } catch (const std::exception& e) {
@@ -261,15 +265,23 @@ void personality_watcher::update_wait_times(auction* au) {
     if (wait_times_.empty()) {
         wait_times_.push_back(au->end_time + auction::s_pause + auction::s_request_wait);
     } else {
-        wait_times_.push_back(
-            std::chrono::abs(au->end_time - std::accumulate(wait_times_.begin(), wait_times_.end(), seconds{0}) +
-                             auction::s_pause + auction::s_request_wait));
+        wait_times_.push_back(std::chrono::abs(
+            au->end_time -
+            std::accumulate(wait_times_.begin(), wait_times_.end(), system_clock::duration{0},
+                            std::plus<system_clock::duration>{}) +
+            auction::s_pause + auction::s_request_wait));
     }
 }
 
 void personality_watcher::wait() {
     std::unique_lock<std::mutex> lock(mtx_);
-    const auto& w = wait_times_.empty() ? minutes{10} : [&]() {
+
+    const auto empty_waits = [&]() {
+        logger->debug("Waiting times were empty, waiting 10 minutes");
+        return minutes{10};
+    };
+
+    const auto& w = wait_times_.empty() ? empty_waits() : [&]() {
         auto&& r = wait_times_.front();
         wait_times_.pop_front();
         return r;

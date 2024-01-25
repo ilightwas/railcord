@@ -24,10 +24,10 @@ inline constexpr const char* handler_arg_sep = "-";
 class Base_Cmd {
   public:
     Base_Cmd() = default;
-    Base_Cmd(const Base_Cmd&) = default;
-    Base_Cmd(Base_Cmd&&) = default;
-    Base_Cmd& operator=(const Base_Cmd&) = default;
-    Base_Cmd& operator=(Base_Cmd&&) = default;
+    Base_Cmd(const Base_Cmd&) = delete;
+    Base_Cmd(Base_Cmd&&) = delete;
+    Base_Cmd& operator=(const Base_Cmd&) = delete;
+    Base_Cmd& operator=(Base_Cmd&&) = delete;
     virtual ~Base_Cmd() = default;
 
     virtual dpp::slashcommand build() = 0;

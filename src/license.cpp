@@ -31,25 +31,17 @@ void from_json(const nlohmann::json& j, License& l) {
 void to_json(nlohmann::json&, const License&) {}
 
 static std::deque<License> request_licenses() {
-    cpr::Response r = cpr::Get(cpr::Url{api_endpoints.at(api::license_id)}, cpr::Timeout{seconds{s_request_license_timeout}});
-    if (r.status_code != 200) {
-        if (r.status_code == 0) {
-            logger->warn("License request timed out");
-        } else {
-            logger->warn("License request failed with status code={}", r.status_code);
-        }
-        return {};
-    }
+    auto response = util::request(api_endpoints.at(api::license_id), s_request_license_timeout);
 
     try {
-        return nlohmann::json::parse(r.text).at("Body").get<std::deque<License>>();
+        return json::parse(response).at("Body").get<std::deque<License>>();
     } catch (const json::exception& e) {
-        logger->warn("Parsing json failed with: {}", e.what());
-        return {};
+        logger->warn("Parsing license json failed with: {}", e.what());
     } catch (const std::exception& e) {
-        logger->warn("request_licenses failed with: {}", e.what());
-        return {};
+        logger->warn("License request failed with: {}", e.what());
     }
+
+    return {};
 }
 
 void License_Manager::fetch_new_licenses() {
@@ -62,8 +54,8 @@ void License_Manager::fetch_new_licenses() {
     }
 
     t_offset_ = std::chrono::system_clock::now();
-    logger->info("Time taken by license request {:.2f}s",
-                 duration_cast<duration<float>>(std::chrono::abs(steady_clock::now() - request_start)).count());
+    logger->debug("Time taken by license request {:.2f}s",
+                  duration_cast<duration<float>>(std::chrono::abs(steady_clock::now() - request_start)).count());
 
     l.erase(std::remove_if(l.begin(), l.end(), [&](const License& ll) { return ll.start.count() == 0; }), l.end());
 

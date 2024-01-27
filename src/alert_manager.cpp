@@ -28,7 +28,7 @@ void Alert_Manager::add_active_auction(const active_auction& au) {
     std::unique_lock<std::shared_mutex> lock{mtx_};
     active_auctions_.push_back(au);
     auto time_left = std::chrono::abs(au.ends_at - system_clock::now());
-    logger->debug("Time left: {} {}", util::fmt_to_hr_min_sec(time_left), au.p->name);
+    logger->debug("Time left for {}: {}", au.p->name, util::fmt_to_hr_min_sec(time_left));
 
     Alert_Info& alert = get_alert_by_type(au.p->info.ptype);
     if (!alert.is_enabled()) {
@@ -308,6 +308,8 @@ void Alert_Manager::reset_alerts() {
 
 void Alert_Manager::refresh_active_auctions() {
     std::unique_lock<std::shared_mutex> lock{mtx_};
+
+    // todo remove seen id
     active_auctions_.erase(std::remove_if(active_auctions_.begin(), active_auctions_.end(),
                                           [](active_auction& au) { return au.has_ended(); }),
                            active_auctions_.end());

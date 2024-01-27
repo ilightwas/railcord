@@ -107,7 +107,7 @@ struct personality {
 struct auction {
     static constexpr std::chrono::seconds s_duration{3300};
     static constexpr std::chrono::seconds s_pause{300};
-    static constexpr std::chrono::seconds s_request_wait{30};
+    static constexpr std::chrono::seconds s_request_wait{300};
 
     // Client adds 3 seconds of delay
     static constexpr std::chrono::seconds s_client_delay{3};
@@ -139,9 +139,11 @@ struct active_auction : public auction {
         return std::chrono::abs(time_left() - std::chrono::minutes{interval} - auction::s_discord_extra_delay);
     }
 
-    bool expired_for_interval(int interval) {
-        return time_left() < std::chrono::minutes{interval};
+    std::chrono::system_clock::duration end_time_for_alert() {
+        return std::chrono::abs(end_time - auction::s_discord_extra_delay);
     }
+
+    bool expired_for_interval(int interval) { return time_left() < std::chrono::minutes{interval}; }
 
     std::chrono::system_clock::time_point ends_at;
     const personality* p;

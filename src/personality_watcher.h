@@ -52,7 +52,7 @@ class personality_watcher {
     bool sync_time();
     void do_sync_time(std::chrono::system_clock::time_point server_time,
                       std::chrono::steady_clock::time_point request_time);
-    void update_wait_times(auction* au);
+    void add_wait_time(active_auction* au);
     void wait();
     std::chrono::system_clock::time_point server_time_now();
 

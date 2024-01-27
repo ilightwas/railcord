@@ -83,8 +83,9 @@ void personality_watcher::personality_update() {
                 watching_.store(false);
                 continue;
             } else {
+                std::unique_lock<std::mutex> lock(mtx_);
                 logger->warn("Update personalities failed before, waiting 30 seconds before next try..");
-                std::this_thread::sleep_for(seconds{30});
+                cv_.wait_for(lock, seconds{30}, [this]() { return !watching_.load(); });
             }
         }
 
@@ -114,9 +115,9 @@ void personality_watcher::personality_update() {
             if (new_auctions.size() > 0) {
                 auto server_time = server_time_now();
                 for (auto&& au : new_auctions) {
-                    update_wait_times(au);
 
                     active_auction new_active_auction{*au, server_time, &gamedata->get_personality(au->personality_id)};
+                    add_wait_time(&new_active_auction);
                     alert_manager_->add_active_auction(new_active_auction);
 
                     auto type = new_active_auction.p->info.ptype;
@@ -132,14 +133,19 @@ void personality_watcher::personality_update() {
                     }
                     msg.add_embed(e);
 
-                    send_discord_msg(msg, tries,
-                                     std::chrono::abs(new_active_auction.end_time - auction::s_discord_extra_delay));
+                    send_discord_msg(msg, tries, new_active_auction.end_time_for_alert());
                 }
             } else {
-                logger->debug("No new auctions in the last request");
-
                 // wait until next hour fifth minute
-                wait_times_.push_back(util::left_to_next_hour(system_clock::now()) + minutes{5});
+                auto left_to_next_hr = util::left_to_next_hour(system_clock::now()) + auction::s_request_wait;
+                logger->info("No new auctions in the last request, shift next request by {}",
+                             util::fmt_to_hr_min_sec(left_to_next_hr));
+
+                if (wait_times_.empty()) {
+                    wait_times_.push_back(left_to_next_hr);
+                } else {
+                    wait_times_.front() = left_to_next_hr;
+                }
             }
 
         } catch (const std::exception& e) {
@@ -256,29 +262,27 @@ void personality_watcher::do_sync_time(system_clock::time_point server_time, ste
     at_sync_time_ = steady_now - time_taken_by_request;
     server_delta_ = duration_cast<milliseconds>(std::chrono::abs(system_now - server_time_) + time_taken_by_request);
 
-    logger->debug("time taken by request: {:.2f}s", duration_cast<duration<float>>(time_taken_by_request).count());
+    logger->debug("Time taken by request: {:.2f}s", duration_cast<duration<float>>(time_taken_by_request).count());
     logger->debug("Server delta: {:.2f}s", duration_cast<duration<float>>(server_delta_).count());
     logger->debug("Sync time finished");
 }
 
-void personality_watcher::update_wait_times(auction* au) {
-    if (wait_times_.empty()) {
-        wait_times_.push_back(au->end_time + auction::s_pause + auction::s_request_wait);
-    } else {
-        wait_times_.push_back(std::chrono::abs(
-            au->end_time -
-            std::accumulate(wait_times_.begin(), wait_times_.end(), system_clock::duration{0},
-                            std::plus<system_clock::duration>{}) +
-            auction::s_pause + auction::s_request_wait));
-    }
+void personality_watcher::add_wait_time(active_auction* au) {
+    auto already_waited = std::accumulate(
+        wait_times_.begin(), wait_times_.end(), system_clock::duration{0}, std::plus<system_clock::duration>{});
+    auto to_wait = std::chrono::abs(au->end_time - already_waited + auction::s_request_wait);
+    logger->debug("Add Wait: {} offset: {}, to wait {}", au->p->name, util::fmt_to_hr_min_sec(already_waited),
+                  util::fmt_to_hr_min_sec(to_wait));
+    wait_times_.push_back(to_wait);
 }
 
 void personality_watcher::wait() {
     std::unique_lock<std::mutex> lock(mtx_);
 
     const auto empty_waits = [&]() {
-        logger->debug("Waiting times were empty, waiting 10 minutes");
-        return minutes{10};
+        auto to_wait = util::left_to_next_hour(system_clock::now()) + auction::s_request_wait;
+        logger->debug("Waiting times were empty, waiting {} next hour", util::fmt_to_hr_min_sec(to_wait));
+        return to_wait;
     };
 
     const auto& w = wait_times_.empty() ? empty_waits() : [&]() {
@@ -289,7 +293,6 @@ void personality_watcher::wait() {
 
     logger->debug("Waiting: {}", util::fmt_to_hr_min_sec(w));
     cv_.wait_for(lock, w, [this]() { return !watching_.load(); });   // if not running on spurious wakeup stop waiting
-    logger->debug("Finished waiting");
 }
 
 system_clock::time_point personality_watcher::server_time_now() {

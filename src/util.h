@@ -90,25 +90,23 @@ std::string fmt_to_hr_min_sec(Duration d) {
         has_hours = true;
     }
 
-    bool has_seconds = true;
+    bool has_minutes = false;
     if (d > minutes{1}) {
         minutes m = duration_cast<minutes>(d);
         d -= m;
-        if (d > seconds{59}) {
-            ++m;
-            has_seconds = false;
-        }
 
         tmp.append(std::to_string(m.count()));
         tmp.append("m");
-    } else if (has_hours) {
-        tmp.append("0m");
+        has_minutes = true;
     }
 
-    if (has_seconds) {
+    if (d > seconds{1}) {
         tmp.append(std::to_string(duration_cast<seconds>(d).count()));
         tmp.append("s");
+    } else if (!has_hours && !has_minutes) {
+        tmp.append("0s");
     }
+
     return tmp;
 }
 

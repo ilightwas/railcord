@@ -65,7 +65,6 @@ class personality_watcher {
     Alert_Manager* alert_manager_;
 
     std::atomic_bool watching_;
-    std::atomic_int errors_;
     std::thread personality_thread_;
     std::condition_variable cv_;
     std::mutex mtx_;

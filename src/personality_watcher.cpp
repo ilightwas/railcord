@@ -73,8 +73,9 @@ void personality_watcher::personality_update() {
         do_sync_time(system_clock::now(), steady_clock::now());
     }
 
+    int errors_ = 0;
     while (watching_.load()) {
-        if (errors_ > s_max_tries) {
+        if (errors_ >= s_max_tries) {
             logger->warn("Failed to update personalities {} times, stopping thread..", s_max_tries);
             watching_.store(false);
             continue;
@@ -87,6 +88,8 @@ void personality_watcher::personality_update() {
             logger->warn("Update personalities failed before, waiting 30 seconds before next try..");
             cv_.wait_for(lock, seconds{30}, [this]() { return !watching_.load(); });
             continue;
+        } else {
+            errors_ = 0;
         }
 
         try {
@@ -263,7 +266,6 @@ void personality_watcher::reset() {
     wait_times_.clear();
     alert_manager_->reset_alerts();
     sent_msgs_.delete_all_messages(true);
-    errors_ = 0;
 }
 
 #pragma endregion PRIVATE

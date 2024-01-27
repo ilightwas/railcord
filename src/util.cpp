@@ -7,6 +7,7 @@
 
 #include <sstream>
 
+#include <cpr/cpr.h>
 #include <openssl/md5.h>
 
 #include "gamedata.h"
@@ -143,6 +144,21 @@ dpp::message build_license_msg(License::Embed_Data* eb) {
     m.add_embed(e);
 
     return m;
+}
+
+std::string request(const std::string& url, int timeout) {
+    cpr::Response r = cpr::Get(cpr::Url{url}, cpr::Timeout{seconds{timeout}});
+
+    if (r.status_code != 200) {
+        if (r.status_code == 0) {
+            logger->warn("request timed out, url={}", url);
+        } else {
+            logger->warn("request failed with status code={}, url={}", r.status_code, url);
+        }
+        return {};
+    }
+
+    return r.text;
 }
 
 std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https) {

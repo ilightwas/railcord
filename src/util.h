@@ -43,6 +43,7 @@ dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* 
 dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
 dpp::message build_license_msg(License::Embed_Data* eb);
 
+std::string request(const std::string& url, int timeout = 10);
 std::string fmt_http_request(const std::string& server, int port, const std::string& endpoint, bool https = false);
 uint32_t rnd_color();
 std::string rnd_emoji(uint32_t idx = 0);

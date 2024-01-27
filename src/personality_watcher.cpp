@@ -69,7 +69,6 @@ bool personality_watcher::is_watching() {
 
 void personality_watcher::personality_update() {
     logger->debug("Personality thread started");
-    auto tries = std::make_shared<std::atomic<int>>(0);
 
     if (use_local_time_ || !sync_time()) {
         logger->warn("Using local system time");
@@ -77,80 +76,26 @@ void personality_watcher::personality_update() {
     }
 
     while (watching_.load()) {
-        if (int tmp_tries = *tries; tmp_tries != 0) {
-            if (tmp_tries > s_max_tries) {
-                logger->warn("Failed to update personalities {} times, stopping thread..", s_max_tries);
-                watching_.store(false);
-                continue;
-            } else {
-                std::unique_lock<std::mutex> lock(mtx_);
-                logger->warn("Update personalities failed before, waiting 30 seconds before next try..");
-                cv_.wait_for(lock, seconds{30}, [this]() { return !watching_.load(); });
-            }
+        if (errors_ > s_max_tries) {
+            logger->warn("Failed to update personalities {} times, stopping thread..", s_max_tries);
+            watching_.store(false);
+            continue;
         }
 
         auto request_success = request_auctions();
         if (!request_success) {
-            ++(*tries);
+            ++errors_;
+            std::unique_lock<std::mutex> lock(mtx_);
+            logger->warn("Update personalities failed before, waiting 30 seconds before next try..");
+            cv_.wait_for(lock, seconds{30}, [this]() { return !watching_.load(); });
             continue;
         }
 
         try {
-            auto&& auctions = *request_success;
-            std::sort(auctions.begin(), auctions.end(),
-                      [](const auction& a, const auction& b) { return a.end_time < b.end_time; });
-
-            std::vector<auction*> new_auctions{};
-            for (auto&& a : auctions) {
-                bool inserted = alert_manager_->add_seen_auction_id(a.id);
-                if (inserted) {   // new id
-                    new_auctions.push_back(&a);
-                    if (new_auctions.size() > 10) {   // embed max
-                        logger->warn("Received more than 10 new auctions");
-                        break;
-                    }
-                }
-            }
-
-            if (new_auctions.size() > 0) {
-                auto server_time = server_time_now();
-                for (auto&& au : new_auctions) {
-
-                    active_auction new_active_auction{*au, server_time, &gamedata->get_personality(au->personality_id)};
-                    add_wait_time(&new_active_auction);
-                    alert_manager_->add_active_auction(new_active_auction);
-
-                    auto type = new_active_auction.p->info.ptype;
-                    if (active_only_horizon_msg_ && !alert_manager_->is_alert_enabled(type)) {
-                        continue;
-                    }
-
-                    dpp::message msg;
-                    msg.channel_id = alert_manager_->get_alert_channel();
-                    auto e = util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true);
-                    if (alert_manager_->has_horizon_message(type)) {
-                        e.add_field("", alert_manager_->get_horizon_message(type));
-                    }
-                    msg.add_embed(e);
-
-                    send_discord_msg(msg, tries, new_active_auction.end_time_for_alert());
-                }
-            } else {
-                // wait until next hour fifth minute
-                auto left_to_next_hr = util::left_to_next_hour(system_clock::now()) + auction::s_request_wait;
-                logger->info("No new auctions in the last request, shift next request by {}",
-                             util::fmt_to_hr_min_sec(left_to_next_hr));
-
-                if (wait_times_.empty()) {
-                    wait_times_.push_back(left_to_next_hr);
-                } else {
-                    wait_times_.front() = left_to_next_hr;
-                }
-            }
-
+            process_auctions(*request_success);
         } catch (const std::exception& e) {
-            logger->error("Something went wrong trying to send the discord message: {}", e.what());
-            ++(*tries);
+            logger->error("Something went wrong while processing auctions: {}", e.what());
+            watching_.store(false);
             continue;
         }
 
@@ -214,6 +159,63 @@ std::optional<std::vector<auction>> personality_watcher::request_auctions() {
     //     logger->warn("request_personalities failed with: {}", e.what());
     //     return {};
     // }
+}
+
+void personality_watcher::process_auctions(std::vector<auction>& auctions) {
+    std::sort(auctions.begin(), auctions.end(),
+              [](const auction& a, const auction& b) { return a.end_time < b.end_time; });
+
+    const auto new_auctions = [&]() {
+        std::vector<auction*> v;
+        for (auto&& a : auctions) {
+            bool inserted = alert_manager_->add_seen_auction_id(a.id);
+            if (inserted) {   // new id
+                v.push_back(&a);
+                if (v.size() > 10) {   // embed max
+                    logger->warn("Received more than 10 new auctions");
+                    break;
+                }
+            }
+        }
+        return v;
+    }();
+
+    if (new_auctions.empty()) {
+        // wait until next hour fifth minute
+        auto left_to_next_hr = util::left_to_next_hour(system_clock::now()) + auction::s_request_wait;
+        logger->info("No new auctions in the last request, shift next request by {}",
+                     util::fmt_to_hr_min_sec(left_to_next_hr));
+
+        if (wait_times_.empty()) {
+            wait_times_.push_back(left_to_next_hr);
+        } else {
+            wait_times_.front() = left_to_next_hr;
+        }
+
+        return;
+    }
+
+    auto server_time = server_time_now();
+    for (auto&& au : new_auctions) {
+        active_auction new_active_auction{*au, server_time, &gamedata->get_personality(au->personality_id)};
+        add_wait_time(&new_active_auction);
+        alert_manager_->add_active_auction(new_active_auction);
+
+        auto type = new_active_auction.p->info.ptype;
+        if (active_only_horizon_msg_ && !alert_manager_->is_alert_enabled(type)) {
+            continue;
+        }
+
+        dpp::message msg;
+        msg.channel_id = alert_manager_->get_alert_channel();
+        auto e = util::build_embed(new_active_auction.client_ends_at(), *new_active_auction.p, true);
+        if (alert_manager_->has_horizon_message(type)) {
+            e.add_field("", alert_manager_->get_horizon_message(type));
+        }
+        msg.add_embed(e);
+
+        send_discord_msg(msg, new_active_auction.end_time_for_alert());
+    }
 }
 
 bool personality_watcher::sync_time() {
@@ -300,31 +302,17 @@ system_clock::time_point personality_watcher::server_time_now() {
            duration_cast<system_clock::duration>(std::chrono::abs(steady_clock::now() - at_sync_time_));
 }
 
-void personality_watcher::send_discord_msg(const dpp::message& msg, std::shared_ptr<std::atomic<int>>& last_tries,
-                                           system_clock::duration wait_delete) {
-    bot_->message_create(msg, [w_ptr = std::weak_ptr{last_tries}, wait_delete, bot = bot_,
-                               sent_msgs = &sent_msgs_](const dpp::confirmation_callback_t& cc) {
-        auto tries = w_ptr.lock();
-
+void personality_watcher::send_discord_msg(const dpp::message& msg, system_clock::duration wait_delete) {
+    bot_->message_create(msg, [this, wait_delete](const dpp::confirmation_callback_t& cc) {
         if (cc.is_error()) {
             logger->warn("Bot failed to create personality message: {}", cc.get_error().message);
-            if (tries) {
-                tries->fetch_add(1);
-            }
             return;
         }
 
-        if (tries) {
-            int tmp_tries = tries->load();
-            if (tmp_tries > 0) {
-                tries->fetch_sub(1);
-            }
-        }
-
         const dpp::message& m = cc.get<dpp::message>();
-        sent_msgs->add_message(m.id, m.channel_id);
+        sent_msgs_.add_message(m.id, m.channel_id);
         util::one_shot_timer(
-            bot, [msg_id = m.id, sent_msgs]() { sent_msgs->delete_message(msg_id, "(non alert)"); },
+            bot_, [msg_id = m.id, s = &sent_msgs_]() { s->delete_message(msg_id, "(non alert)"); },
             static_cast<uint64_t>(duration_cast<seconds>(wait_delete).count()) + util::s_delete_message_delay);
     });
 }
@@ -333,6 +321,7 @@ void personality_watcher::reset() {
     wait_times_.clear();
     alert_manager_->reset_alerts();
     sent_msgs_.delete_all_messages(true);
+    errors_ = 0;
 }
 
 #pragma endregion PRIVATE

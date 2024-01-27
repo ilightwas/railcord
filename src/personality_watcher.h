@@ -47,7 +47,8 @@ class personality_watcher {
 
   private:
     void personality_update();
-    std::optional<std::vector<railcord::auction>> request_auctions();
+    std::optional<std::vector<auction>> request_auctions();
+    void process_auctions(std::vector<auction>& auctions);
 
     bool sync_time();
     void do_sync_time(std::chrono::system_clock::time_point server_time,
@@ -56,8 +57,7 @@ class personality_watcher {
     void wait();
     std::chrono::system_clock::time_point server_time_now();
 
-    void send_discord_msg(const dpp::message& msg, std::shared_ptr<std::atomic<int>>& tries,
-                          std::chrono::system_clock::duration wait_delete);
+    void send_discord_msg(const dpp::message& msg, std::chrono::system_clock::duration wait_delete);
     void reset();
 
     dpp::cluster* bot_;
@@ -65,6 +65,7 @@ class personality_watcher {
     Alert_Manager* alert_manager_;
 
     std::atomic_bool watching_;
+    std::atomic_int errors_;
     std::thread personality_thread_;
     std::condition_variable cv_;
     std::mutex mtx_;

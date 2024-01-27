@@ -67,9 +67,8 @@ std::string timepoint_to_date(Tp tp) {
     std::time_t tt = std::chrono::system_clock::to_time_t(tp);
     std::tm tm{get_localtime(&tt)};
 
-    char buff[1024];
+    char buff[32];
 
-    // not thread safe
     if (strftime(buff, sizeof buff, "%I:%M:%S %p", &tm)) {
         return buff;
     }

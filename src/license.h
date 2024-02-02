@@ -12,7 +12,8 @@
 
 namespace railcord {
 
-struct Good;
+struct GameResource;
+using Good = GameResource;
 
 static constexpr int s_request_license_timeout = 90;   // seconds
 

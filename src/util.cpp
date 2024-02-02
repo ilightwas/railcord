@@ -121,14 +121,14 @@ dpp::embed build_embed(std::chrono::system_clock::time_point ends_at, const pers
 dpp::message build_license_msg(License::Embed_Data* eb) {
     dpp::embed e;
     // e.set_image(good->icon);
-    e.set_thumbnail(eb->good->icon);
+    e.set_thumbnail(eb->good->icon_url);
     e.add_field("License", fmt::format("The auction for {} will end soon {}", eb->good->name,
                                        timepoint_to_discord_timestamp(eb->end_tp)));
     e.add_field("Minimum price", std::to_string(eb->license->min_price));
     e.add_field("Amount", std::to_string(eb->license->count).append("x"));
 
     dpp::embed_author author;
-    author.icon_url = eb->good->icon;
+    author.icon_url = eb->good->icon_url;
     author.name = eb->good->name;
     e.set_author(author);
 

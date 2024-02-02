@@ -30,7 +30,7 @@ constexpr const char* on_horizon_msg = "horizonmsg";
 
 static std::vector<dpp::component> build_personality_btns(Lucy* lucy, personality::type t) {
     Alert_Manager* alert_manager = lucy->alert_manager();
-    const Gamedata* g = lucy->gamedata();
+    const GameData* g = lucy->gamedata();
 
     bool alerts_enabled = alert_manager->is_alert_enabled(t);
     const dpp::emoji& emoji = g->get_emoji(t);
@@ -117,8 +117,8 @@ static std::vector<dpp::component> build_personality_btns(Lucy* lucy, personalit
             btn.set_type(dpp::cot_button);
             btn.set_label(std::to_string(m < 60 ? m : m / 60) + (m < 60 ? "m" : "h") + (enabled ? " (on)" : " (off)"));
             btn.set_emoji(dpp::unicode_emoji::timer_clock);
-            btn.set_id(build_id(prefix_alert_on, on_timer, std::to_string(t.t), std::to_string(m),
-                                std::to_string(enabled)));
+            btn.set_id(
+                build_id(prefix_alert_on, on_timer, std::to_string(t.t), std::to_string(m), std::to_string(enabled)));
             btns.push_back(btn);
         }
     }
@@ -142,22 +142,26 @@ static std::vector<dpp::component> build_personality_btns(Lucy* lucy, personalit
 }
 
 static dpp::message build_select_menu_message(Lucy* lucy) {
-    Gamedata* g = lucy->gamedata();
+    GameData* g = lucy->gamedata();
     Alert_Manager* alert_manager = lucy->alert_manager();
-    const auto& goods = g->goods();
-    assert(s_icon_effects_offset + s_personality_icons_sz == goods.size() - 1 &&
-           "Goods size not consistent with static values");
+    const auto& pEffects = g->personality_effects();
 
     std::vector<dpp::select_option> options;
-    auto iter = goods.begin() + s_icon_effects_offset + 1;
 
+    auto iter = pEffects.begin() + 1;   // skip 0 idx
     uint8_t idx = 1;
-    while (iter != goods.end()) {
+
+    while (iter != pEffects.end()) {
         personality::type t{idx};
         bool enabled = alert_manager->is_alert_enabled(t);
 
-        options.emplace_back(iter->name + (enabled ? " (on)" : " (off)"), std::to_string(idx), t.description())
-            .set_emoji(iter->emoji, iter->emoji_id);
+        auto& emplaced =
+            options.emplace_back(iter->name + (enabled ? " (on)" : " (off)"), std::to_string(idx), t.description());
+
+        if (iter->emoji) {
+            emplaced.set_emoji(iter->emoji->name, iter->emoji->id);
+        }
+
         ++idx;
         ++iter;
     }

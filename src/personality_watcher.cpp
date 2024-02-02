@@ -21,7 +21,7 @@ using json = nlohmann::json;
 /// ---------------------------------------- PUBLIC ---------------------------------------
 #pragma region PUBLIC
 
-personality_watcher::personality_watcher(dpp::cluster* bot, Gamedata* g, Alert_Manager* al_mn)
+personality_watcher::personality_watcher(dpp::cluster* bot, GameData* g, Alert_Manager* al_mn)
     : bot_(bot), gamedata(g), alert_manager_(al_mn), watching_(false), sent_msgs_(bot) {}
 
 personality_watcher::~personality_watcher() {

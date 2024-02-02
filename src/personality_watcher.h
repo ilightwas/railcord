@@ -18,13 +18,13 @@
 
 namespace railcord {
 
-class Gamedata;
+class GameData;
 class Alert_Info;
 class Alert_Manager;
 
 class personality_watcher {
   public:
-    personality_watcher(dpp::cluster* bot, Gamedata* g, Alert_Manager* al_m);
+    personality_watcher(dpp::cluster* bot, GameData* g, Alert_Manager* al_m);
     personality_watcher() = delete;
     personality_watcher(const personality_watcher&) = delete;
     personality_watcher(personality_watcher&&) = delete;
@@ -61,7 +61,7 @@ class personality_watcher {
     void reset();
 
     dpp::cluster* bot_;
-    Gamedata* gamedata;
+    GameData* gamedata;
     Alert_Manager* alert_manager_;
 
     std::atomic_bool watching_;

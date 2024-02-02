@@ -21,10 +21,6 @@
 #include "personality.h"
 
 namespace railcord {
-class Gamedata;
-struct Good;
-struct License;
-struct Embed_Data;
 class Sent_Messages;
 }   // namespace railcord
 
@@ -126,7 +122,8 @@ inline dpp::timer one_shot_timer(dpp::cluster* bot, std::function<void()> f, uin
 inline int as_int(const nlohmann::json& j) { return std::stoi(j.get<std::string>()); }
 inline bool starts_with(const std::string& s, const std::string& prefix) { return (s.rfind(prefix, 0) == 0); }
 inline std::string to_lowercase(std::string s) {
-    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return static_cast<unsigned char>(std::tolower(c)); });
     return s;
 }
 

@@ -10,11 +10,6 @@ using namespace railcord::util;
 
 namespace railcord {
 
-const std::string personality::unknown_icon{"Unknown icon"};
-
-const personality personality::unknown{
-    personality::information{}, "Unkown", "Unkown personality", &personality::unknown_icon, &personality::unknown_icon};
-
 std::string personality::information::str() const {
     std::stringstream ss;
     ss << "Id: " << id << ", effect: " << effect << ", type: " << ptype.t << ", art_id: " << art_id

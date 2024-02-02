@@ -1,7 +1,5 @@
 #include <cassert>
-#include <deque>
 #include <fstream>
-#include <string>
 
 #include <pugixml.hpp>
 
@@ -9,6 +7,12 @@
 #include "logger.h"
 
 namespace railcord {
+
+#define DESCRIPTION_PLACEHOLDER "%0"
+#define RESOURCE_PATH(g, r) (std::string{}.append("resources/").append(g).append(r))
+
+inline constexpr char s_name_fmt[]{"IDS_PERSONALITY_NAME_"};
+inline constexpr char s_effect_fmt[]{"IDS_PERSONALITY_EFFECT_"};
 
 typedef std::unordered_map<int, std::string> str_map;
 typedef std::unordered_map<int, personality::information> pstats_map;
@@ -36,7 +40,7 @@ static pstats_map load_personality_stats(const std::string& stats_file) {
 
 static names_desc load_personality_names_desc(const std::string& gamedata_file, const pstats_map& p_stats) {
     typedef railcord::personality::type type;
-    logger->debug("Loading personality names and descriptions...");
+    logger->debug("Parsing personality names and descriptions...");
 
     // skip extra personalities not used in the current stats data file
     auto not_found = [](int id, auto& map) -> bool {
@@ -55,7 +59,7 @@ static names_desc load_personality_names_desc(const std::string& gamedata_file, 
     pugi::xml_parse_result res = doc.load_file(gamedata_file.c_str());
 
     if (!res) {
-        logger->error("Could not load personality names and descriptions: {}", res.description());
+        logger->error("Could not parse personality names and descriptions: {}", res.description());
         throw std::runtime_error{res.description()};
     }
 
@@ -112,45 +116,40 @@ static names_desc load_personality_names_desc(const std::string& gamedata_file, 
     return {all_names, all_descriptions};
 }
 
-static std::deque<Good> load_goods(const std::string& goods_file) {
-    logger->debug("Loading goods information...");
+static std::deque<GameResource> load_gameresource(const std::string& file_name) {
+    logger->debug("Loading file {}", file_name);
 
-    std::ifstream stream{goods_file};
-
+    std::ifstream stream{file_name};
     if (!stream.is_open()) {
-        throw std::runtime_error{"Could not open goods file"};
+        throw std::runtime_error{fmt::format("Could not open {} file", file_name)};
     }
-
-    std::deque<Good> goods{};
 
     try {
-        nlohmann::json j_goods = json::parse(stream);
-        assert(j_goods.size() <= s_goods_arr_sz && "Goods json bigger than array");
-        for (unsigned i = 0; i < s_goods_arr_sz; ++i) {
-            const json& j = j_goods[i];
-            goods.emplace_back(j["id"].get<int>(), j["name"].get<std::string>(), j["icon"].get<std::string>(),
-                               j["emoji"].get<std::string>(), j["emoji-id"].get<std::uint64_t>());
-        }
-
+        return json::parse(stream).get<std::deque<GameResource>>();
     } catch (const json::exception& e) {
-        logger->error("Could not load goods information: {}", e.what());
+        logger->error("{}", e.what());
         throw;
     }
-
-    return goods;
 }
 
-void Gamedata::init(std::string p_stats_file, std::string gamedata_file, std::string goods_file) {
-    pstats_map stats = load_personality_stats(p_stats_file);
-    goods_ = load_goods(goods_file);
-    const auto& [names, descriptions] = load_personality_names_desc(gamedata_file, stats);
+void GameData::init(const std::string& game_mode) {
+    pstats_map stats = load_personality_stats(RESOURCE_PATH(game_mode, "_personalities.json"));
+    goods_ = load_gameresource(RESOURCE_PATH(game_mode, "_goods.json"));
+    pEffects_ = load_gameresource(RESOURCE_PATH(game_mode, "_personality_effects.json"));
+    const auto& [names, descriptions] = load_personality_names_desc(RESOURCE_PATH(game_mode, "_gamedata.xml"), stats);
     for (const auto& [id, stat] : stats) {
-        const auto& icons = get_icons(stat);
-        personalities_.insert({id, {stats[id], names.at(id), descriptions.at(id), icons.first, icons.second}});
+        const auto& [main, sec] = get_icons(stat);
+        personalities_.try_emplace(id, stats.at(id), names.at(id), descriptions.at(id), main, sec);
     }
+
+    assert(goods_.size() > 0);
+    unknow_ = personality{personality::information{}, "Unkown", "Unkown personality", &goods_.front().icon_url,
+                          &goods_.front().icon_url};
 }
 
-const personality& Gamedata::get_rnd_personality(personality::type t) const {
+const personality& GameData::get_personality(int id) const { return personalities_.at(id); }
+
+const personality& GameData::get_rnd_personality(personality::type t) const {
 
     for (const auto& [id, p] : personalities_) {
         if (p.info.ptype == t) {
@@ -158,20 +157,23 @@ const personality& Gamedata::get_rnd_personality(personality::type t) const {
         }
     }
     // not found
-    return personality::unknown;
+    return unknow_;
 }
 
-dpp::emoji Gamedata::get_emoji(personality::type t) const {
-    auto good = goods_[static_cast<size_t>(s_icon_effects_offset + t.t)];
-    return dpp::emoji{good.emoji, good.emoji_id};
+const std::deque<Good>& GameData::goods() const { return goods_; }
+
+const std::deque<Good>& GameData::personality_effects() const { return pEffects_; }
+
+dpp::emoji GameData::get_emoji(personality::type t) const {
+    assert(t.t < pEffects_.size());
+    const auto& effects = pEffects_[static_cast<size_t>(t.t)];
+    if (effects.emoji) {
+        return {effects.emoji->name, effects.emoji->id};
+    }
+    return {};
 }
 
-std::string Gamedata::get_effect_icon(personality::type t) const {
-    auto good = goods_[static_cast<size_t>(s_icon_effects_offset + t.t)];
-    return good.icon;
-}
-
-const Good* Gamedata::get_license_good(int good_type) {
+const Good* GameData::get_license_good(int good_type) const {
     size_t idx{static_cast<size_t>(good_type)};
 
     if (goods_.size() > idx) {
@@ -181,7 +183,7 @@ const Good* Gamedata::get_license_good(int good_type) {
     }
 }
 
-std::pair<const std::string*, const std::string*> Gamedata::get_icons(const personality::information& info) const {
+PIcons GameData::get_icons(const personality::information& info) const {
     typedef personality::type t;
     switch (info.ptype) {
         case t::goods: {
@@ -190,19 +192,60 @@ std::pair<const std::string*, const std::string*> Gamedata::get_icons(const pers
             size_t idx1{static_cast<size_t>(g_ids[1])};
             assert(idx0 < goods_.size() && idx1 < goods_.size() && "Goods index out of bounds");
 
-            return std::make_pair(&goods_[idx0].icon, &goods_[idx1 ? idx1 : idx0].icon);
+            return std::make_pair(&goods_[idx0].icon_url, &goods_[idx1 ? idx1 : idx0].icon_url);
         }
         case t::hourly: {
-            auto&& icon = info.goods_id[0] ? &goods_[s_prestige_icon_idx].icon : &goods_[s_money_icon_idx].icon;
-            return std::make_pair(icon, icon);
+            const GameResource* res = nullptr;
+            const auto find_money = [](const GameResource& g) { return g.name == "Money"; };
+            const auto find_prestige = [](const GameResource& g) { return g.name == "Hourly prestige"; };
+
+            switch (info.goods_id[0]) {
+                case 0: {
+                    auto money = std::find_if(goods_.begin(), goods_.end(), find_money);
+                    if (money != goods_.end()) {
+                        res = &(*money);
+                    }
+                    break;
+                }
+                case 2: {
+                    auto prestige = std::find_if(pEffects_.begin(), pEffects_.end(), find_prestige);
+                    if (prestige != pEffects_.end()) {
+                        res = &(*prestige);
+                    }
+                    break;
+                }
+                default: {
+                    logger->warn("No hourly personality found with value {}", info.goods_id[0]);
+                }
+            }
+            if (!res) {
+                logger->warn("No resource of hourly personality with id {} found", info.id);
+                return std::make_pair(&err_icon_, &err_icon_);
+            }
+
+            return std::make_pair(&res->icon_url, &res->icon_url);
         }
         default: {
-            size_t offset = s_icon_effects_offset + static_cast<size_t>(info.ptype);
-            assert(offset < goods_.size() && "Goods index out of bounds");
-            auto&& icon = &goods_[offset].icon;
+            assert(info.ptype.t < pEffects_.size() && "pEffects index out of bounds");
+            auto&& icon = &pEffects_[info.ptype.t].icon_url;
             return std::make_pair(icon, icon);
         }
     }
 }
+
+void from_json(const nlohmann::json& j, GameResource& gr) {
+    const auto emoji_id = "emoji-id";
+    const auto emoji_name = "emoji";
+
+    gr.id = j.at("id");
+    gr.name = j.at("name");
+    gr.icon_url = j.at("icon");
+
+    if (j.contains(emoji_id) && j.contains(emoji_name)) {
+        gr.emoji = {j.at(emoji_id), j.at(emoji_name)};
+    }
+}
+
+void to_json(nlohmann::json&, const GameResource&) {}
 
 }   // namespace railcord

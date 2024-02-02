@@ -32,7 +32,7 @@ class Lucy {
     bool is_running() { return running_.load(); }
     void shutdown();
 
-    Gamedata* gamedata() { return &gamedata_; }
+    GameData* gamedata() { return &gamedata_; }
     Alert_Manager* alert_manager() { return &alert_manager_; }
     personality_watcher* watcher() { return &watcher_; }
     const std::vector<dpp::snowflake>& user_whitelist() { return whitelist_; }
@@ -46,7 +46,7 @@ class Lucy {
     void load_commands();
 
     std::atomic_bool running_;
-    Gamedata gamedata_;
+    GameData gamedata_;
     Alert_Manager alert_manager_;
     personality_watcher watcher_;
     cmd::Command_handler cmd_handler;

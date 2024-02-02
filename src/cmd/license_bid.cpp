@@ -20,8 +20,8 @@ License_Bid::License_Bid(Lucy* lucy)
 
     std::vector<std::string> choices;
     const auto& goods = lucy->gamedata()->goods();
-    auto begin = goods.begin() + 1;
-    auto end = goods.begin() + s_icon_effects_offset;
+    auto begin = goods.begin() + 1;   // skip random good
+    auto end = goods.end();
     while (begin != end) {
         choices.emplace_back(begin->name);
         ++begin;

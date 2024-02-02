@@ -12,7 +12,7 @@
 
 namespace railcord {
 
-class Gamedata;
+class GameData;
 struct personality {
     struct type {
         enum : uint8_t {
@@ -88,14 +88,12 @@ struct personality {
         std::string str() const;
     };
 
+    personality() = default;
     personality(information i, std::string name, std::string description, const std::string* icon1,
                 const std::string* icon2);
 
     std::string str() const;
     std::string get_art_url() const;
-
-    static const personality unknown;
-    static const std::string unknown_icon;
 
     information info;   // reminder: keep member order equal to ctor init list for move
     std::string name;

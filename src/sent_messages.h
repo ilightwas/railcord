@@ -2,6 +2,7 @@
 #define SENT_MESSAGES_H
 
 #include <mutex>
+#include <string>
 #include <vector>
 
 #include <dpp/dpp.h>

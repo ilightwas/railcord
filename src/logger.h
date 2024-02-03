@@ -1,12 +1,17 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#ifdef USE_SPDLOG
+#include <string>
+
 #include <dpp/dpp.h>
+
+#ifdef USE_SPDLOG
 #include <spdlog/spdlog.h>
 #else
 #include <fmt/core.h>
+#include <iostream>
 #endif
+
 namespace railcord {
 
 #ifdef USE_SPDLOG

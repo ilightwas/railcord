@@ -3,17 +3,17 @@
 
 #include <algorithm>
 #include <chrono>
-#include <fstream>
+#include <cstdint>
 #include <functional>
-#include <memory>
-#include <mutex>
 #include <random>
 #include <string>
 #include <time.h>
-#include <vector>
+
+// clang-format off
+#include <dpp/json.h>
+// clang-format on
 
 #include <dpp/dpp.h>
-#include <dpp/nlohmann/json.hpp>
 
 #include "alert_info.h"
 #include "license.h"

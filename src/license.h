@@ -7,8 +7,11 @@
 #include <optional>
 #include <string>
 
+// clang-format off
+#include <dpp/json.h>
+// clang-format on
+
 #include <dpp/dpp.h>
-#include <dpp/nlohmann/json.hpp>
 
 namespace railcord {
 

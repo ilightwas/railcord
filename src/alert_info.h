@@ -1,10 +1,11 @@
 #ifndef ALERT_INFO_H
 #define ALERT_INFO_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include <dpp/nlohmann/json.hpp>
+#include <dpp/json.h>
 
 #include "personality.h"
 

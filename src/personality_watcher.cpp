@@ -258,7 +258,8 @@ void personality_watcher::send_discord_msg(const dpp::message& msg, system_clock
         sent_msgs_.add_message(m.id, m.channel_id);
         util::one_shot_timer(
             bot_, [msg_id = m.id, s = &sent_msgs_]() { s->delete_message(msg_id, "(non alert)"); },
-            static_cast<uint64_t>(duration_cast<seconds>(wait_delete).count()) + util::s_delete_message_delay);
+            static_cast<uint64_t>(duration_cast<seconds>(wait_delete).count()) +
+                MessageTracker::s_delete_message_delay);
     });
 }
 

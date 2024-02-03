@@ -15,7 +15,7 @@ add_executable(lucy
   src/util.cpp
   src/alert_info.cpp
   src/alert_manager.cpp
-  src/sent_messages.cpp
+  src/message_tracker.cpp
   src/license.cpp
   src/cmd/license_bid.cpp
   src/cmd/command_handler.cpp

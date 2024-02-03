@@ -294,7 +294,7 @@ void Alert_on::handle_button_click(const dpp::button_click_t& event) {
                     const dpp::message& m = cc.get<dpp::message>();
                     util::one_shot_timer(
                         bot,
-                        [sent_msg = Sent_Message{m.id, m.channel_id}, bot]() {
+                        [sent_msg = SentMessage{m.id, m.channel_id}, bot]() {
                             logger->info("Deleting msg(preview) id = {}", static_cast<uint64_t>(sent_msg.id));
                             bot->message_delete(sent_msg.id, sent_msg.channel_id);
                         },

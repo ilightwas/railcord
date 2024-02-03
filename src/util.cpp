@@ -11,7 +11,7 @@
 #include <openssl/md5.h>
 
 #include "gamedata.h"
-#include "sent_messages.h"
+#include "message_tracker.h"
 #include "util.h"
 
 namespace railcord::util {
@@ -63,10 +63,11 @@ std::string md5(const std::string& str) {
     return ss.str();
 }
 
-dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs) {
+dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, MessageTracker* sent_msgs) {
 
-    auto delete_delay = static_cast<uint64_t>(
-        (static_cast<unsigned>(data.interval) * 60u) + s_delete_message_delay - auction::s_discord_extra_delay.count());
+    auto delete_delay =
+        static_cast<uint64_t>((static_cast<unsigned>(data.interval) * 60u) + MessageTracker::s_delete_message_delay -
+                              auction::s_discord_extra_delay.count());
 
     auto delete_msg = [bot, sent_msgs, delete_delay](const dpp::confirmation_callback_t& cc) {
         if (!cc.is_error()) {

@@ -10,8 +10,8 @@
 #include <dpp/dpp.h>
 
 #include "alert_info.h"
+#include "message_tracker.h"
 #include "personality.h"
-#include "sent_messages.h"
 
 namespace railcord {
 
@@ -85,7 +85,7 @@ class Alert_Manager {
 
     dpp::snowflake alert_role_;
     dpp::snowflake alert_channel_;
-    Sent_Messages sent_msgs_;
+    MessageTracker sent_msgs_;
     std::vector<Custom_Message> custom_msgs_;
 };
 

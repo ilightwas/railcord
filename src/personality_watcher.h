@@ -12,8 +12,8 @@
 
 #include <dpp/dpp.h>
 
+#include "message_tracker.h"
 #include "personality.h"
-#include "sent_messages.h"
 
 namespace railcord {
 
@@ -75,7 +75,7 @@ class personality_watcher {
     std::chrono::system_clock::time_point server_time_;
 
     std::deque<std::chrono::system_clock::duration> wait_times_;
-    Sent_Messages sent_msgs_;
+    MessageTracker sent_msgs_;
 };
 }   // namespace railcord
 

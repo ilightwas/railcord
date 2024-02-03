@@ -21,13 +21,12 @@
 #include "personality.h"
 
 namespace railcord {
-class Sent_Messages;
+class MessageTracker;
 }   // namespace railcord
 
 namespace railcord::util {
 
 inline constexpr auto s_inv_space = "‎";
-inline constexpr uint64_t s_delete_message_delay = 180;
 
 std::tm get_localtime(std::time_t* tt);
 std::chrono::system_clock::duration left_to_next_hour(std::chrono::system_clock::time_point tp);
@@ -35,7 +34,7 @@ std::chrono::system_clock::duration left_to_next_hour(std::chrono::system_clock:
 std::string get_token(const std::string& token_file);
 std::string md5(const std::string& str);
 
-dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, Sent_Messages* sent_msgs);
+dpp::timer make_alert(dpp::cluster* bot, const Alert_Data& data, MessageTracker* sent_msgs);
 dpp::embed build_embed(std::chrono::system_clock::time_point tp, const personality& p, bool with_timer = false);
 dpp::message build_license_msg(License::Embed_Data* eb);
 

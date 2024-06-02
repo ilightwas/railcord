@@ -4,6 +4,7 @@
 #include <INIReader.h>
 
 #include "cmd/commands.h"
+#include "cmdline_helper.h"
 #include "gamedata.h"
 #include "logger.h"
 #include "lucy.h"
@@ -19,30 +20,33 @@ std::unordered_map<int, std::string> api_endpoints;
 
 Lucy::Lucy() : Lucy(railcord::util::get_token(token_file)) {}
 
-Lucy::Lucy(const std::string& token) : bot(token), alert_manager_(&bot), watcher_(&bot, &gamedata_, &alert_manager_) {}
+Lucy::Lucy(const std::string& token)
+    : bot(token), alert_manager_(&bot), watcher_(&bot, &gamedata_, &alert_manager_), cmd_handler_(this) {}
 
-void Lucy::init(bool reg_cmds) {
+void Lucy::init(int argc, const char* argv[]) {
 #ifdef USE_SPDLOG
     integrate_spdlog(bot, "lucy.log");
 #else
     bot.on_log(dpp::utility::cout_logger());
 #endif
-
     load_settings();
-    gamedata_.init();
 
-    load_commands();
-    if (reg_cmds) {
-        cmd_handler.register_commands(this);
+    const auto action = cmd::parse_cmdline(argc, argv);
+    if (action != cmd::BotAction::INIT) {
+        cmd::do_cmdline_action(action, this);
+    } else {
+        gamedata_.init();
+
+        cmd_handler_.load_all_commands();
+        cmd_handler_.on_slash_cmd();
+        cmd_handler_.on_form_submit();
+        cmd_handler_.on_button_click();
+        cmd_handler_.on_select_click();
     }
-
-    cmd_handler.on_slash_cmd(this);
-    cmd_handler.on_form_submit(this);
-    cmd_handler.on_button_click(this);
-    cmd_handler.on_select_click(this);
 
     running_.store(true);
     bot.start();
+
     {
         std::mutex thread_mutex;
         auto block_calling_thread = [this, &thread_mutex]() -> void {
@@ -120,18 +124,6 @@ void Lucy::shutdown() {
             bot.terminating.notify_one();
         });
     });
-}
-
-void Lucy::load_commands() {
-    cmd_handler.add_command(new cmd::Ping(this));
-    cmd_handler.add_command(new cmd::Watch(this));
-    cmd_handler.add_command(new cmd::Stop_watch(this));
-    cmd_handler.add_command(new cmd::Shutdown(this));
-    cmd_handler.add_command(new cmd::Set_channel(this));
-    cmd_handler.add_command(new cmd::Alert_on(this));
-    cmd_handler.add_command(new cmd::Save_Settings(this));
-    cmd_handler.add_command(new cmd::Remove_Custom_Message(this));
-    cmd_handler.add_command(new cmd::License_Bid(this));
 }
 
 }   // namespace railcord

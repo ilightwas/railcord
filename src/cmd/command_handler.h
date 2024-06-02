@@ -15,21 +15,24 @@ class Base_Cmd;
 
 class Command_handler {
   public:
-    Command_handler();
+    Command_handler(Lucy* lucy);
     Command_handler(const Command_handler&) = delete;
     Command_handler& operator=(const Command_handler&) = delete;
     Command_handler& operator=(Command_handler&&) = delete;
     ~Command_handler();
 
-    void on_slash_cmd(Lucy* lucy);
-    void on_form_submit(Lucy* lucy);
-    void on_button_click(Lucy* lucy);
-    void on_select_click(Lucy* lucy);
+    void on_slash_cmd();
+    void on_form_submit();
+    void on_button_click();
+    void on_select_click();
 
     void add_command(Base_Cmd* cmd);
-    void register_commands(Lucy* lucy);
+    void load_all_commands();
+    void register_commands();
+    void deregister_commands();
 
   private:
+    Lucy* lucy_;
     std::vector<Base_Cmd*> cmds_;
     std::vector<std::pair<std::string, Base_Cmd*>> cmd_prefix_handlers_;   // prefix -> cmd
 };

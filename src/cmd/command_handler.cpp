@@ -1,8 +1,10 @@
 #include <algorithm>
+#include <mutex>
 #include <vector>
 
 #include <dpp/dpp.h>
 
+#include "command_handler.h"
 #include "commands.h"
 #include "logger.h"
 #include "lucy.h"
@@ -10,7 +12,7 @@
 
 namespace railcord::cmd {
 
-Command_handler::Command_handler() {}
+Command_handler::Command_handler(Lucy* lucy) : lucy_(lucy) {}
 
 Command_handler::~Command_handler() {
     for (auto&& c : cmds_) {
@@ -39,9 +41,9 @@ static bool can_use_command(const dpp::slashcommand_t& event, Lucy* lucy) {
     return false;
 }
 
-void Command_handler::on_slash_cmd(Lucy* lucy) {
-    lucy->bot.on_slashcommand([this, lucy](const dpp::slashcommand_t& event) {
-        if (!can_use_command(event, lucy)) {
+void Command_handler::on_slash_cmd() {
+    lucy_->bot.on_slashcommand([this](const dpp::slashcommand_t& event) {
+        if (!can_use_command(event, lucy_)) {
             event.reply(dpp::message{"You have no permissions for this command!"}.set_flags(dpp::m_ephemeral));
             return;
         }
@@ -66,8 +68,8 @@ void Command_handler::on_slash_cmd(Lucy* lucy) {
     });
 }
 
-void Command_handler::on_form_submit(Lucy* lucy) {
-    lucy->bot.on_form_submit([this](const dpp::form_submit_t& event) {
+void Command_handler::on_form_submit() {
+    lucy_->bot.on_form_submit([this](const dpp::form_submit_t& event) {
         for (const auto& [prefix, cmd] : cmd_prefix_handlers_) {
             if (event.custom_id.rfind(prefix, 0) == 0) {
                 cmd->handle_form_submit(event);
@@ -80,8 +82,8 @@ void Command_handler::on_form_submit(Lucy* lucy) {
     });
 }
 
-void Command_handler::on_button_click(Lucy* lucy) {
-    lucy->bot.on_button_click([this](const dpp::button_click_t& event) {
+void Command_handler::on_button_click() {
+    lucy_->bot.on_button_click([this](const dpp::button_click_t& event) {
         for (const auto& [prefix, cmd] : cmd_prefix_handlers_) {
             if (event.custom_id.rfind(prefix, 0) == 0) {
                 cmd->handle_button_click(event);
@@ -94,8 +96,8 @@ void Command_handler::on_button_click(Lucy* lucy) {
     });
 }
 
-void Command_handler::on_select_click(Lucy* lucy) {
-    lucy->bot.on_select_click([this](const dpp::select_click_t& event) {
+void Command_handler::on_select_click() {
+    lucy_->bot.on_select_click([this](const dpp::select_click_t& event) {
         for (const auto& [prefix, cmd] : cmd_prefix_handlers_) {
             if (event.custom_id.rfind(prefix, 0) == 0) {
                 cmd->handle_select_click(event);
@@ -120,8 +122,23 @@ void Command_handler::add_command(Base_Cmd* cmd) {
     }
 }
 
-void Command_handler::register_commands(Lucy* lucy) {
-    lucy->bot.on_ready([this, lucy](const dpp::ready_t&) {
+void Command_handler::load_all_commands() {
+    static std::once_flag s_flag;
+    std::call_once(s_flag, [this]() {
+        add_command(new cmd::Ping(lucy_));
+        add_command(new cmd::Watch(lucy_));
+        add_command(new cmd::Stop_watch(lucy_));
+        add_command(new cmd::Shutdown(lucy_));
+        add_command(new cmd::Set_channel(lucy_));
+        add_command(new cmd::Alert_on(lucy_));
+        add_command(new cmd::Save_Settings(lucy_));
+        add_command(new cmd::Remove_Custom_Message(lucy_));
+        add_command(new cmd::License_Bid(lucy_));
+    });
+}
+
+void Command_handler::register_commands() {
+    lucy_->bot.on_ready([this](const dpp::ready_t&) {
         if (dpp::run_once<struct register_bot_commands>()) {
             std::vector<dpp::slashcommand> commands;
             for (const auto& c : cmds_) {
@@ -129,9 +146,24 @@ void Command_handler::register_commands(Lucy* lucy) {
                 commands.emplace_back(c->build());
             }
 
-            lucy->bot.guild_bulk_command_create(commands, test_server);
+            lucy_->bot.guild_bulk_command_create(
+                commands, test_server, [lucy = this->lucy_](const dpp::confirmation_callback_t& c) {
+                    dpp::utility::log_error()(c);
+                    lucy->shutdown();
+                });
         }
     });
 }
 
+void Command_handler::deregister_commands() {
+    lucy_->bot.on_ready([lucy = this->lucy_](const dpp::ready_t&) {
+        if (dpp::run_once<struct deregister_bot_commands>()) {
+            logger->info("Deregistering all commands from server {}", test_server);
+            lucy->bot.guild_bulk_command_create({}, test_server, [lucy](const dpp::confirmation_callback_t& c) {
+                dpp::utility::log_error()(c);
+                lucy->shutdown();
+            });
+        }
+    });
+}
 }   // namespace railcord::cmd

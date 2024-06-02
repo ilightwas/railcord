@@ -26,7 +26,7 @@ class Lucy {
     Lucy& operator=(const Lucy&) = delete;
     Lucy& operator=(Lucy&&) = delete;
 
-    void init(bool reg_cmds);
+    void init(int argc, const char* argv[]);
     void load_settings();
 
     bool is_running() { return running_.load(); }
@@ -35,6 +35,7 @@ class Lucy {
     GameData* gamedata() { return &gamedata_; }
     Alert_Manager* alert_manager() { return &alert_manager_; }
     personality_watcher* watcher() { return &watcher_; }
+    cmd::Command_handler* cmd_handler() { return &cmd_handler_; }
     const std::vector<dpp::snowflake>& user_whitelist() { return whitelist_; }
     const std::vector<dpp::emoji>& custom_emojis() { return custom_emojis_; }
     dpp::snowflake bot_admin_role() const { return bot_admin_role_; }
@@ -43,13 +44,11 @@ class Lucy {
     dpp::cluster bot;
 
   private:
-    void load_commands();
-
     std::atomic_bool running_;
     GameData gamedata_;
     Alert_Manager alert_manager_;
     personality_watcher watcher_;
-    cmd::Command_handler cmd_handler;
+    cmd::Command_handler cmd_handler_;
     dpp::snowflake bot_admin_role_;
     std::vector<dpp::snowflake> whitelist_;
     std::vector<dpp::emoji> custom_emojis_;

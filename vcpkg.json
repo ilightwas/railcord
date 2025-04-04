@@ -9,5 +9,6 @@
     "pugixml",
     "openssl",
     "cpr"
-  ]
+  ],
+  "builtin-baseline": "4df73f711672ae77da79081a483e658187c57efd"
 }
